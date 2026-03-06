@@ -3,7 +3,6 @@ import 'dart:async';
 import 'data_model.dart';
 import 'native_collection_accessor.dart';
 import 'query_builder.dart';
-import 'typedefs.dart';
 
 abstract interface class LocalDataSource {
   Future<void> init();

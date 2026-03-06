@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:isar_community/isar_community.dart';
+import 'package:isar_community/isar.dart';
 
 import '../../core/native_collection_accessor.dart';
 import '../../core/query_builder.dart' as core;
@@ -44,6 +44,16 @@ final class IsarNativeAccessor<T> implements NativeCollectionAccessor<T> {
   @override
   Future<int> count() async {
     return _collection.count();
+  }
+
+  @override
+  Stream<List<T>> watchAll() {
+    return _collection.where().watch(fireImmediately: true);
+  }
+
+  @override
+  Stream<T?> watchById(dynamic id) {
+    return _isar.collection<T>().watchObject(id as int, fireImmediately: true);
   }
 
   @override

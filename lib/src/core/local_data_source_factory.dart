@@ -1,6 +1,8 @@
 import 'local_data_source.dart';
 import 'local_data_source_config.dart';
+import '../engines/hive/hive_config.dart';
 import '../engines/hive/hive_data_source.dart';
+import '../engines/isar/isar_config.dart';
 import '../engines/isar/isar_data_source.dart';
 
 abstract final class LocalDataSourceFactory {
@@ -21,8 +23,9 @@ abstract final class LocalDataSourceFactory {
     }
 
     final LocalDataSource dataSource = switch (config) {
-      HiveDataSourceConfig() => HiveDataSource(config: config),
-      IsarDataSourceConfig() => IsarDataSource(config: config),
+      HiveDataSourceConfig c => HiveDataSource(config: c),
+      IsarDataSourceConfig c => IsarDataSource(config: c),
+      _ => throw UnsupportedError('Unsupported config type: ${config.runtimeType}'),
     };
 
     await dataSource.init();

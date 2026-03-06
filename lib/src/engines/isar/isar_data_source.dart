@@ -1,12 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
-import 'package:isar_community/isar_community.dart';
+import 'package:isar_community/isar.dart';
 
 import '../../core/data_model.dart';
 import '../../core/exceptions.dart';
 import '../../core/local_data_source.dart';
 import '../../core/native_collection_accessor.dart';
-import '../../core/query_builder.dart';
+import '../../core/query_builder.dart' as core;
 import '../../core/typedefs.dart';
 import 'isar_config.dart';
 import 'isar_native_accessor.dart';

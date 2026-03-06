@@ -3,7 +3,7 @@ import '../engines/isar/isar_config.dart';
 
 enum DatabaseEngine { hive, isar }
 
-sealed class LocalDataSourceConfig {
+abstract class LocalDataSourceConfig {
   final String directory;
   final DatabaseEngine engine;
 
@@ -14,14 +14,14 @@ sealed class LocalDataSourceConfig {
 
   factory LocalDataSourceConfig.hive({
     required String directory,
-    List<String> preloadBoxes = const [],
+    List<String> preloadBoxes,
     HiveEncryptionConfig? encryption,
   }) = HiveDataSourceConfig;
 
   factory LocalDataSourceConfig.isar({
     required String directory,
     required List<dynamic> schemas,
-    int maxSizeMiB = 256,
-    bool inspector = false,
+    int maxSizeMiB,
+    bool inspector,
   }) = IsarDataSourceConfig;
 }
