@@ -221,12 +221,24 @@ await db.clear('settings');
 | `get<T>` | `Future<T?> get<T>(String collection, String key)` | Retrieves a value by key |
 | `delete` | `Future<void> delete(String collection, String key)` | Removes a single key |
 | `clear` | `Future<void> clear(String collection)` | Removes all entries in a collection |
+| `dispose` | `Future<void> dispose()` | Closes the database and releases all resources |
 
 ---
 
 ### Complex Objects (Generic Path)
 
 Use `DataModelAdapter<T>` to serialize/deserialize any custom Dart object. This path stores objects as JSON strings, making it **fully portable** across all engines.
+
+> **Tip:** If your model class already implements `toJson`/`fromJson`, you can optionally have it implement the `DataModel<T>` interface as a marker contract:
+>
+> ```dart
+> abstract interface class DataModel<T> {
+>   JsonMap toJson();
+>   T fromJson(JsonMap json);
+> }
+> ```
+>
+> The adapter (`DataModelAdapter<T>`) is what the API actually uses; `DataModel<T>` is an optional structural contract you can adopt for consistency.
 
 **Step 1 — Define your model:**
 
@@ -393,6 +405,7 @@ db.query<User>('users', userAdapter)
 | `.findAll()` | `Future<List<T>> findAll()` | Executes and returns all matches |
 | `.findFirst()` | `Future<T?> findFirst()` | Executes and returns first match |
 | `.count()` | `Future<int> count()` | Returns number of matches |
+| `.deleteAll()` | `Future<bool> deleteAll()` | Deletes all matched objects (native engines only; throws on generic in-memory path) |
 | `.watch()` | `Stream<List<T>> watch()` | Watches query results reactively |
 
 ---
@@ -546,6 +559,18 @@ Future<void> main() async {
     email: 'yasin@example.com',
     createdAt: DateTime.now(),
   ));
+
+  await users.putAll([
+    UserEntity(
+      id: '2',
+      name: 'Ali',
+      email: 'ali@example.com',
+      createdAt: DateTime.now(),
+    ),
+  ]);
+
+  // NOTE: HiveNativeAccessor.putAll() uses box.addAll() — items are appended
+  // with auto-incremented integer keys. For keyed upsert, call put() individually.
 
   final allUsers = await users.getAll();
 
@@ -737,6 +762,7 @@ final db = await LocalDataSourceFactory.create(
 Swap at runtime:
 
 ```dart
+// reset() calls dispose() on the current instance, then clears it
 await LocalDataSourceFactory.reset();
 
 await LocalDataSourceFactory.create(
@@ -746,7 +772,15 @@ await LocalDataSourceFactory.create(
 final db = LocalDataSourceFactory.instance;
 ```
 
-> **Note:** Code using the **Generic Path** (`put`/`get`/`putObject`) swaps seamlessly. Code using the **Native Path** (`db.native<T>()`) requires engine-specific models and may need adjustment when switching engines.
+You can also dispose a specific instance directly:
+
+```dart
+await db.dispose(); // closes the DB and frees all resources
+```
+
+> **Note:** `create()` automatically disposes any existing instance before creating the new one, so you don't need to call `reset()` first when simply switching configs.
+>
+> Code using the **Generic Path** (`put`/`get`/`putObject`) swaps seamlessly. Code using the **Native Path** (`db.native<T>()`) requires engine-specific models and may need adjustment when switching engines.
 
 ---
 
@@ -877,7 +911,8 @@ db.watch<String>('settings', 'theme')
 | **Repository** | Each engine implementation | Encapsulates all data access behind a single contract |
 | **Singleton** | `LocalDataSourceFactory._instance` | Single database instance across the app |
 | **Builder** | `QueryBuilder<T>` chain | Fluent query construction with deferred execution |
-| **Sealed Class** | `LocalDataSourceConfig` / Exceptions | Exhaustive compile-time checked type hierarchies |
+| **Sealed Class** | Exceptions hierarchy | Exhaustive compile-time checked exception types |
+| **Abstract Class** | `LocalDataSourceConfig` | Shared config base with engine-specific subclasses |
 
 ---
 
@@ -891,9 +926,9 @@ local_data_source/
 │   └── src/
 │       ├── core/
 │       │   ├── local_data_source.dart             # Base abstract interface
-│       │   ├── local_data_source_config.dart      # Unified configuration (sealed)
+│       │   ├── local_data_source_config.dart      # Unified configuration (abstract)
 │       │   ├── local_data_source_factory.dart     # Factory entry point
-│       │   ├── data_model.dart                    # Serialization contract
+│       │   ├── data_model.dart                    # DataModel<T> interface + DataModelAdapter<T>
 │       │   ├── native_collection_accessor.dart    # Native engine access interface
 │       │   ├── query_builder.dart                 # Abstract + in-memory query builder
 │       │   ├── exceptions.dart                    # Sealed exception hierarchy
@@ -907,16 +942,12 @@ local_data_source/
 │       │       ├── isar_data_source.dart          # Isar implementation
 │       │       ├── isar_native_accessor.dart      # Isar @collection accessor
 │       │       ├── isar_config.dart               # Isar-specific configuration
-│       │       └── isar_kv_entry.dart             # Internal @collection for KV ops
+│       │       ├── isar_kv_entry.dart             # Internal @collection for KV ops
+│       │       └── isar_kv_entry.g.dart           # Generated Isar schema (build_runner)
 │       └── extensions/
 │           └── stream_extensions.dart             # Reactive stream utilities
-└── example/
-    ├── hive_example.dart                          # Generic path with Hive
-    ├── isar_example.dart                          # Generic path with Isar
-    ├── hive_native_example.dart                   # Native TypeAdapter example
-    ├── isar_native_example.dart                   # Native @collection example
-    ├── isar_raw_query_example.dart                # Raw Isar instance example
-    └── swap_engine.dart                           # Engine swapping demo
+└── test/
+    └── local_data_source_test.dart
 ```
 
 ---
@@ -1016,6 +1047,22 @@ LocalDataSourceConfig.hive(
 ```
 
 Isar Community does not support encryption natively. You can encrypt at the application layer using the `DataModelAdapter<T>` serialization step.
+</details>
+
+<details>
+<summary><strong>When should I call dispose()?</strong></summary>
+
+Call `dispose()` when your app is shutting down or when you want to explicitly release database resources. Both engine implementations close all open boxes/databases and clear internal caches.
+
+```dart
+// Dispose directly on the instance
+await db.dispose();
+
+// Or via the factory (also clears the singleton)
+await LocalDataSourceFactory.reset();
+```
+
+`LocalDataSourceFactory.create()` automatically calls `dispose()` on any existing instance before opening the new one, so manual disposal is only needed on app exit or in tests.
 </details>
 
 <details>
