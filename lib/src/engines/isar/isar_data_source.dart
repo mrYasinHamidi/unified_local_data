@@ -307,4 +307,9 @@ final class IsarDataSource implements UnifiedDataSource {
     _nativeAccessors[collection] = accessor;
     return accessor;
   }
+
+  @override
+  Future<void> drop() {
+    return _db.clear();
+  }
 }

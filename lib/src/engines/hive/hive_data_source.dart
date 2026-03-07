@@ -276,7 +276,7 @@ final class HiveDataSource implements UnifiedDataSource {
 
     final box = _boxCache[collection];
     if (box == null || box is! hive.Box<T>) {
-      throw UnsupportedOperationException(
+      throw const UnsupportedOperationException(
         'No typed Box<\$T> found for "\$collection". '
         'Open the box with openTypedBox<\$T>() first.',
       );
@@ -285,5 +285,10 @@ final class HiveDataSource implements UnifiedDataSource {
     final accessor = HiveNativeAccessor<T>(box);
     _nativeAccessors[collection] = accessor;
     return accessor;
+  }
+
+  @override
+  Future<void> drop() {
+    return hive.Hive.deleteFromDisk();
   }
 }
