@@ -1,6 +1,6 @@
 ## 1.0.0
 
-* Initial release of `local_data_source`.
+* Initial release of `unified_local_data`.
 * Universal, engine-agnostic local database abstraction layer for Flutter.
 * Support for [Hive CE](https://pub.dev/packages/hive_ce) and [Isar Community](https://pub.dev/packages/isar_community) engines.
 * Unified `LocalDataSource` interface for primitives, complex objects, batch operations, reactive streams, query builder, and transactions.

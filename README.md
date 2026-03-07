@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Version-1.0.0-blue" alt="Version" />
 </p>
 
-<h1 align="center">📦 local_data_source</h1>
+<h1 align="center">📦 unified_local_data</h1>
 
 <p align="center">
   <strong>A universal, engine-agnostic local database abstraction layer for Flutter.</strong>
@@ -19,7 +19,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [Why local\_data\_source?](#why-local_data_source)
+- [Why unified\_local\_data?](#why-unified_local_data)
 - [Architecture](#architecture)
 - [Supported Engines](#supported-engines)
 - [Installation](#installation)
@@ -54,7 +54,7 @@
 
 ## Overview
 
-`local_data_source` is a **production-grade Dart package** that provides a single, unified interface for all local database operations in Flutter apps. It decouples your application logic from any specific database engine using the **Strategy Pattern**, enabling you to switch between [Hive CE](https://pub.dev/packages/hive_ce) and [Isar Community](https://pub.dev/packages/isar_community) — or plug in any future engine — with zero refactoring.
+`unified_local_data` is a **production-grade Dart package** that provides a single, unified interface for all local database operations in Flutter apps. It decouples your application logic from any specific database engine using the **Strategy Pattern**, enabling you to switch between [Hive CE](https://pub.dev/packages/hive_ce) and [Isar Community](https://pub.dev/packages/isar_community) — or plug in any future engine — with zero refactoring.
 
 The package offers **two data access paths**:
 
@@ -63,7 +63,7 @@ The package offers **two data access paths**:
 
 ---
 
-## Why local_data_source?
+## Why unified_local_data?
 
 | Pain Point | Solution |
 |---|---|
@@ -137,8 +137,8 @@ Add the following to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  local_data_source:
-    path: packages/local_data_source  # or your git/pub reference
+  unified_local_data:
+    path: packages/unified_local_data  # or your git/pub reference
 ```
 
 The package bundles both Hive CE and Isar Community internally. You do **not** need to add them separately.
@@ -150,7 +150,7 @@ The package bundles both Hive CE and Isar Community internally. You do **not** n
 ### Initialize with Hive
 
 ```dart
-import 'package:local_data_source/local_data_source.dart';
+import 'package:unified_local_data/local_data_source.dart';
 import 'package:path_provider/path_provider.dart';
 
 Future<void> main() async {
@@ -172,7 +172,7 @@ Future<void> main() async {
 ### Initialize with Isar
 
 ```dart
-import 'package:local_data_source/local_data_source.dart';
+import 'package:unified_local_data/local_data_source.dart';
 import 'package:path_provider/path_provider.dart';
 
 Future<void> main() async {
@@ -533,7 +533,7 @@ dart run build_runner build --delete-conflicting-outputs
 
 ```dart
 import 'package:hive_ce/hive_ce.dart';
-import 'package:local_data_source/local_data_source.dart';
+import 'package:unified_local_data/local_data_source.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'models/user_entity.dart';
@@ -634,7 +634,7 @@ dart run build_runner build --delete-conflicting-outputs
 **Step 3 — Pass schemas at init and use:**
 
 ```dart
-import 'package:local_data_source/local_data_source.dart';
+import 'package:unified_local_data/local_data_source.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'models/product_entity.dart';
@@ -698,7 +698,7 @@ When you need Isar's **full native query DSL** — generated `.filter()`, `.sort
 
 ```dart
 import 'package:isar_community/isar_community.dart';
-import 'package:local_data_source/local_data_source.dart';
+import 'package:unified_local_data/local_data_source.dart';
 
 import 'models/product_entity.dart';
 
@@ -879,7 +879,7 @@ try {
 The package includes utility extensions for working with reactive streams:
 
 ```dart
-import 'package:local_data_source/local_data_source.dart';
+import 'package:unified_local_data/local_data_source.dart';
 
 db.watchAll<String>('settings')
     .debounceTime(Duration(milliseconds: 300))
