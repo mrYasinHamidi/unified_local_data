@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:local_data_source/local_data_source.dart';
+import 'package:unified_local_data/local_data_source.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// A simple example demonstrating how to use [local_data_source] with the
+/// A simple example demonstrating how to use [unified_local_data] with the
 /// Hive CE engine.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

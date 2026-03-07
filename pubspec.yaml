@@ -1,4 +1,4 @@
-name: local_data_source
+name: unified_local_data
 description: A universal, engine-agnostic local database abstraction layer for Flutter.
 version: 1.0.0
 repository: https://github.com/mrYasinHamidi/local_data_source
