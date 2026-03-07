@@ -1,3 +1,9 @@
-## 0.0.1
+## 1.0.0
 
-* TODO: Describe initial release.
+* Initial release of `local_data_source`.
+* Universal, engine-agnostic local database abstraction layer for Flutter.
+* Support for [Hive CE](https://pub.dev/packages/hive_ce) and [Isar Community](https://pub.dev/packages/isar_community) engines.
+* Unified `LocalDataSource` interface for primitives, complex objects, batch operations, reactive streams, query builder, and transactions.
+* `NativeCollectionAccessor` API for direct engine-level access when needed.
+* `LocalDataSourceFactory` for simple engine initialization and configuration.
+* Stream extensions for reactive data patterns.
