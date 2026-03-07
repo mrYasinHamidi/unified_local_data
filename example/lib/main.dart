@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:unified_local_data/unified_data_source.dart';
+import 'package:unified_local_data/unified_local_data.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// A simple example demonstrating how to use [unified_local_data] with the
