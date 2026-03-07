@@ -5,7 +5,7 @@ import 'package:isar_community/isar.dart';
 
 import '../../core/data_model.dart';
 import '../../core/exceptions.dart';
-import '../../core/local_data_source.dart';
+import '../../core/unified_data_source.dart';
 import '../../core/native_collection_accessor.dart';
 import '../../core/query_builder.dart' as core;
 import '../../core/typedefs.dart';
@@ -13,7 +13,7 @@ import 'isar_config.dart';
 import 'isar_native_accessor.dart';
 import 'isar_kv_entry.dart';
 
-final class IsarDataSource implements LocalDataSource {
+final class IsarDataSource implements UnifiedDataSource {
   final IsarDataSourceConfig config;
   Isar? _isar;
   bool _initialized = false;
@@ -87,10 +87,7 @@ final class IsarDataSource implements LocalDataSource {
         ..value = jsonEncode(value);
 
       await _db.writeTxn(() async {
-        final existing = await _kvCollection
-            .filter()
-            .compositeKeyEqualTo(composite)
-            .findFirst();
+        final existing = await _kvCollection.filter().compositeKeyEqualTo(composite).findFirst();
         if (existing != null) {
           entry.id = existing.id;
         }
@@ -124,10 +121,7 @@ final class IsarDataSource implements LocalDataSource {
   @override
   Future<void> clear(String collection) async {
     _ensureInitialized();
-    final entries = await _kvCollection
-        .filter()
-        .collectionEqualTo(collection)
-        .findAll();
+    final entries = await _kvCollection.filter().collectionEqualTo(collection).findAll();
     final ids = entries.map((e) => e.id).toList();
     await _db.writeTxn(() => _kvCollection.deleteAll(ids));
   }
@@ -135,20 +129,14 @@ final class IsarDataSource implements LocalDataSource {
   @override
   Future<List<T>> getAll<T>(String collection) async {
     _ensureInitialized();
-    final entries = await _kvCollection
-        .filter()
-        .collectionEqualTo(collection)
-        .findAll();
+    final entries = await _kvCollection.filter().collectionEqualTo(collection).findAll();
     return entries.map((e) => jsonDecode(e.value) as T).toList();
   }
 
   @override
   Future<List<String>> getAllKeys(String collection) async {
     _ensureInitialized();
-    final entries = await _kvCollection
-        .filter()
-        .collectionEqualTo(collection)
-        .findAll();
+    final entries = await _kvCollection.filter().collectionEqualTo(collection).findAll();
     return entries.map((e) => e.key).toList();
   }
 
@@ -162,10 +150,7 @@ final class IsarDataSource implements LocalDataSource {
   @override
   Future<int> count(String collection) async {
     _ensureInitialized();
-    return _kvCollection
-        .filter()
-        .collectionEqualTo(collection)
-        .count();
+    return _kvCollection.filter().collectionEqualTo(collection).count();
   }
 
   @override
@@ -207,10 +192,7 @@ final class IsarDataSource implements LocalDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    final entries = await _kvCollection
-        .filter()
-        .collectionEqualTo(collection)
-        .findAll();
+    final entries = await _kvCollection.filter().collectionEqualTo(collection).findAll();
     return entries.map((e) {
       final outerJson = jsonDecode(e.value) as String;
       final json = jsonDecode(outerJson) as JsonMap;
@@ -227,10 +209,7 @@ final class IsarDataSource implements LocalDataSource {
     await _db.writeTxn(() async {
       for (final entry in entries.entries) {
         final composite = _compositeKey(collection, entry.key);
-        final existing = await _kvCollection
-            .filter()
-            .compositeKeyEqualTo(composite)
-            .findFirst();
+        final existing = await _kvCollection.filter().compositeKeyEqualTo(composite).findFirst();
 
         final kvEntry = IsarKvEntry()
           ..compositeKey = composite
@@ -293,10 +272,10 @@ final class IsarDataSource implements LocalDataSource {
         .collectionEqualTo(collection)
         .watch(fireImmediately: true)
         .map((entries) => entries.map((e) {
-          final outerJson = jsonDecode(e.value) as String;
-          final json = jsonDecode(outerJson) as JsonMap;
-          return adapter.fromJson(json);
-        }).toList());
+              final outerJson = jsonDecode(e.value) as String;
+              final json = jsonDecode(outerJson) as JsonMap;
+              return adapter.fromJson(json);
+            }).toList());
   }
 
   @override

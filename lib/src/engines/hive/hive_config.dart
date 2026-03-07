@@ -1,11 +1,11 @@
-import '../../core/local_data_source_config.dart';
+import '../../core/unified_data_source_config.dart';
 
 final class HiveEncryptionConfig {
   final List<int> key;
   const HiveEncryptionConfig({required this.key});
 }
 
-final class HiveDataSourceConfig extends LocalDataSourceConfig {
+final class HiveDataSourceConfig extends UnifiedDataSourceConfig {
   final List<String> preloadBoxes;
   final HiveEncryptionConfig? encryption;
 

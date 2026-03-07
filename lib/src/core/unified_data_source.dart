@@ -4,7 +4,7 @@ import 'data_model.dart';
 import 'native_collection_accessor.dart';
 import 'query_builder.dart';
 
-abstract interface class LocalDataSource {
+abstract interface class UnifiedDataSource {
   Future<void> init();
 
   Future<void> dispose();

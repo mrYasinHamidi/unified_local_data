@@ -5,14 +5,14 @@ import 'package:hive_ce/hive_ce.dart' as hive;
 
 import '../../core/data_model.dart';
 import '../../core/exceptions.dart';
-import '../../core/local_data_source.dart';
+import '../../core/unified_data_source.dart';
 import '../../core/native_collection_accessor.dart';
 import '../../core/query_builder.dart';
 import '../../core/typedefs.dart';
 import 'hive_config.dart';
 import 'hive_native_accessor.dart';
 
-final class HiveDataSource implements LocalDataSource {
+final class HiveDataSource implements UnifiedDataSource {
   final HiveDataSourceConfig config;
   final Map<String, hive.Box<dynamic>> _boxCache = {};
   final Map<String, NativeCollectionAccessor<dynamic>> _nativeAccessors = {};

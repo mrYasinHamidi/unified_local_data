@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:unified_local_data/local_data_source.dart';
+import 'package:unified_local_data/unified_data_source.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// A simple example demonstrating how to use [unified_local_data] with the
@@ -10,8 +10,8 @@ void main() async {
   // Initialize the data source with the Hive engine.
   final dir = await getApplicationDocumentsDirectory();
 
-  final dataSource = await LocalDataSourceFactory.create(
-    LocalDataSourceConfig.hive(
+  final dataSource = await UnifiedDataSourceFactory.create(
+    UnifiedDataSourceConfig.hive(
       directory: dir.path,
       preloadBoxes: ['settings', 'cache'],
     ),
