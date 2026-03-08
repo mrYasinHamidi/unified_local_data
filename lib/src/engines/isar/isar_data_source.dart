@@ -252,6 +252,25 @@ final class IsarDataSource implements UnifiedDataSource {
   }
 
   @override
+  Stream<T?> watchObject<T>(
+    String collection,
+    String key,
+    DataModelAdapter<T> adapter,
+  ) {
+    _ensureInitialized();
+    return _kvCollection
+        .filter()
+        .compositeKeyEqualTo(_compositeKey(collection, key))
+        .watch(fireImmediately: true)
+        .map((entries) {
+      if (entries.isEmpty) return null;
+      final outerJson = jsonDecode(entries.first.value) as String;
+      final json = jsonDecode(outerJson) as JsonMap;
+      return adapter.fromJson(json);
+    });
+  }
+
+  @override
   Stream<List<T>> watchAll<T>(String collection) {
     _ensureInitialized();
     return _kvCollection

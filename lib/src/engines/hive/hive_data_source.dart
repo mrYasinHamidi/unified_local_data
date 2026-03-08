@@ -228,6 +228,21 @@ final class HiveDataSource implements UnifiedDataSource {
   }
 
   @override
+  Stream<T?> watchObject<T>(
+    String collection,
+    String key,
+    DataModelAdapter<T> adapter,
+  ) async* {
+    _ensureInitialized();
+    final box = await _openBox(collection);
+    yield box.get(key) as T?;
+    yield* box.watch(key: key).map((raw) {
+      final json = jsonDecode(raw as String) as JsonMap;
+      return adapter.fromJson(json);
+    });
+  }
+
+  @override
   Stream<List<T>> watchAll<T>(String collection) async* {
     _ensureInitialized();
     final box = await _openBox(collection);

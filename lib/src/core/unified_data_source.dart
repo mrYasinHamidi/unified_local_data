@@ -58,6 +58,12 @@ abstract interface class UnifiedDataSource {
 
   Stream<T?> watch<T>(String collection, String key);
 
+  Stream<T?> watchObject<T>(
+    String collection,
+    String key,
+    DataModelAdapter<T> adapter,
+  );
+
   Stream<List<T>> watchAll<T>(String collection);
 
   Stream<List<T>> watchAllObjects<T>(
