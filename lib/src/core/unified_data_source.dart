@@ -15,6 +15,8 @@ abstract interface class UnifiedDataSource {
 
   Future<void> delete(String collection, String key);
 
+  Future<void> deleteAll(String collection, List<String> keys);
+
   Future<void> drop();
 
   Future<void> clear(String collection);
@@ -27,54 +29,38 @@ abstract interface class UnifiedDataSource {
 
   Future<int> count(String collection);
 
-  Future<void> putObject<T>(
-    String collection,
-    String key,
-    T value,
-    DataModelAdapter<T> adapter,
-  );
+  Future<void> putObject<T>(String collection,
+      String key,
+      T value,
+      DataModelAdapter<T> adapter,);
 
-  Future<T?> getObject<T>(
-    String collection,
-    String key,
-    DataModelAdapter<T> adapter,
-  );
+  Future<T?> getObject<T>(String collection,
+      String key,
+      DataModelAdapter<T> adapter,);
 
-  Future<List<T>> getAllObjects<T>(
-    String collection,
-    DataModelAdapter<T> adapter,
-  );
+  Future<List<T>> getAllObjects<T>(String collection,
+      DataModelAdapter<T> adapter,);
 
-  Future<void> putAll<T>(
-    String collection,
-    Map<String, T> entries,
-  );
+  Future<void> putAll<T>(String collection,
+      Map<String, T> entries,);
 
-  Future<void> putAllObjects<T>(
-    String collection,
-    Map<String, T> entries,
-    DataModelAdapter<T> adapter,
-  );
+  Future<void> putAllObjects<T>(String collection,
+      Map<String, T> entries,
+      DataModelAdapter<T> adapter,);
 
   Stream<T?> watch<T>(String collection, String key);
 
-  Stream<T?> watchObject<T>(
-    String collection,
-    String key,
-    DataModelAdapter<T> adapter,
-  );
+  Stream<T?> watchObject<T>(String collection,
+      String key,
+      DataModelAdapter<T> adapter,);
 
   Stream<List<T>> watchAll<T>(String collection);
 
-  Stream<List<T>> watchAllObjects<T>(
-    String collection,
-    DataModelAdapter<T> adapter,
-  );
+  Stream<List<T>> watchAllObjects<T>(String collection,
+      DataModelAdapter<T> adapter,);
 
-  QueryBuilder<T> query<T>(
-    String collection,
-    DataModelAdapter<T> adapter,
-  );
+  QueryBuilder<T> query<T>(String collection,
+      DataModelAdapter<T> adapter,);
 
   Future<void> transaction(Future<void> Function() action);
 

@@ -113,6 +113,13 @@ final class HiveDataSource implements UnifiedDataSource {
   }
 
   @override
+  Future<void> deleteAll(String collection, List<String> keys) async {
+    _ensureInitialized();
+    final box = await _openBox(collection);
+    await box.deleteAll(keys);
+  }
+
+  @override
   Future<void> clear(String collection) async {
     _ensureInitialized();
     final box = await _openBox(collection);

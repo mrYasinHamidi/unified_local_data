@@ -75,6 +75,11 @@ final class IsarDataSource implements UnifiedDataSource {
     return _kvCollection.filter().compositeKeyEqualTo(composite).findFirst();
   }
 
+  Future<List<IsarKvEntry>> _findEntries(String collection, List<String> keys) async {
+    final compositeKeys = keys.map((key) => _compositeKey(collection, key)).toList();
+    return _kvCollection.filter().anyOf(compositeKeys, (q, composite) => q.compositeKeyEqualTo(composite)).findAll();
+  }
+
   @override
   Future<void> put<T>(String collection, String key, T value) async {
     _ensureInitialized();
@@ -116,6 +121,16 @@ final class IsarDataSource implements UnifiedDataSource {
     final entry = await _findEntry(collection, key);
     if (entry == null) return;
     await _db.writeTxn(() => _kvCollection.delete(entry.id));
+  }
+
+  @override
+  Future<void> deleteAll(String collection, List<String> keys) async {
+    _ensureInitialized();
+    if (keys.isEmpty) return;
+    final entries = await _findEntries(collection, keys);
+    if (entries.isEmpty) return;
+    final ids = entries.map((e) => e.id).toList();
+    await _db.writeTxn(() => _kvCollection.deleteAll(ids));
   }
 
   @override
