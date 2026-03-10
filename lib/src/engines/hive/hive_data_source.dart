@@ -242,11 +242,16 @@ final class HiveDataSource implements UnifiedDataSource {
   ) async* {
     _ensureInitialized();
     final box = await _openBox(collection);
-    yield box.get(key) as T?;
-    yield* box.watch(key: key).map((raw) {
+
+    T? decode(dynamic raw) {
+      if (raw == null) return null;
+
       final json = jsonDecode(raw as String) as JsonMap;
       return adapter.fromJson(json);
-    });
+    }
+
+    yield decode(box.get(key));
+    yield* box.watch(key: key).map((raw) => decode(raw.value));
   }
 
   @override
