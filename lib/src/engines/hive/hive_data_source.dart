@@ -315,7 +315,11 @@ final class HiveDataSource implements UnifiedDataSource {
   }
 
   @override
-  Future<void> drop() {
-    return hive.Hive.deleteFromDisk();
+  Future<void> drop({String? collection}) {
+    if (collection != null) {
+      return hive.Hive.deleteBoxFromDisk(collection);
+    } else {
+      return hive.Hive.deleteFromDisk();
+    }
   }
 }

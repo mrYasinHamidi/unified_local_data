@@ -343,7 +343,13 @@ final class IsarDataSource implements UnifiedDataSource {
   }
 
   @override
-  Future<void> drop() {
-    return _db.clear();
+  Future<void> drop({String? collection}) {
+    if (collection != null) {
+      return _db.writeTxn(
+        () => _kvCollection.clear(),
+      );
+    } else {
+      return _db.clear();
+    }
   }
 }

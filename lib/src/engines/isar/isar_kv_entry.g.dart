@@ -76,7 +76,7 @@ const IsarKvEntrySchema = CollectionSchema(
   getId: _isarKvEntryGetId,
   getLinks: _isarKvEntryGetLinks,
   attach: _isarKvEntryAttach,
-  version: '3.3.0',
+  version: '3.3.2',
 );
 
 int _isarKvEntryEstimateSize(

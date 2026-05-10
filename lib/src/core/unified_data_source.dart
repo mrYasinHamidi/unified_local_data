@@ -17,7 +17,7 @@ abstract interface class UnifiedDataSource {
 
   Future<void> deleteAll(String collection, List<String> keys);
 
-  Future<void> drop();
+  Future<void> drop({String? collection});
 
   Future<void> clear(String collection);
 
