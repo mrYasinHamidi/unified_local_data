@@ -343,13 +343,14 @@ final class IsarDataSource implements UnifiedDataSource {
   }
 
   @override
-  Future<void> drop({String? collection}) {
+  Future<void> drop({String? collection}) async {
     if (collection != null) {
-      return _db.writeTxn(
-        () => _kvCollection.clear(),
-      );
+      final entries = await _kvCollection.filter().collectionEqualTo(collection).findAll();
+      if (entries.isEmpty) return;
+      final ids = entries.map((e) => e.id).toList();
+      await _db.writeTxn(() => _kvCollection.deleteAll(ids));
     } else {
-      return _db.clear();
+      await _db.clear();
     }
   }
 }

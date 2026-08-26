@@ -1,3 +1,9 @@
+## 1.1.0
+
+* Added `deleteAll(collection, keys)` for removing multiple keys in one call.
+* Added `drop({collection})` to delete a single collection from disk, or the entire database when no collection is given.
+* Added `watchObject<T>(collection, key, adapter)` to watch a single key as a typed object.
+
 ## 1.0.0
 
 * Initial release of `unified_local_data`.

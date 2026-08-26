@@ -212,7 +212,13 @@ final theme = await db.get<String>('settings', 'theme');
 
 await db.delete('settings', 'theme');
 
+await db.deleteAll('settings', ['theme', 'locale']);
+
 await db.clear('settings');
+
+await db.drop(collection: 'settings');
+
+await db.drop();
 ```
 
 | Method | Signature | Description |
@@ -220,8 +226,12 @@ await db.clear('settings');
 | `put<T>` | `Future<void> put<T>(String collection, String key, T value)` | Stores a value by key |
 | `get<T>` | `Future<T?> get<T>(String collection, String key)` | Retrieves a value by key |
 | `delete` | `Future<void> delete(String collection, String key)` | Removes a single key |
+| `deleteAll` | `Future<void> deleteAll(String collection, List<String> keys)` | Removes several keys in one call |
 | `clear` | `Future<void> clear(String collection)` | Removes all entries in a collection |
+| `drop` | `Future<void> drop({String? collection})` | Deletes a collection from disk, or the whole database when `collection` is omitted |
 | `dispose` | `Future<void> dispose()` | Closes the database and releases all resources |
+
+> **`clear` vs `drop`:** `clear` empties a collection but keeps it available for reuse. `drop` removes the collection itself — on Hive it deletes the box file from disk, on Isar it deletes every entry belonging to that collection. Calling `drop()` with no argument wipes the entire database.
 
 ---
 
@@ -343,6 +353,10 @@ db.watch<String>('settings', 'theme').listen((value) {
   print('Theme changed to: $value');
 });
 
+db.watchObject<User>('users', 'user_1', userAdapter).listen((user) {
+  print('User changed: ${user?.name}');
+});
+
 db.watchAll<String>('settings').listen((values) {
   print('Settings updated: $values');
 });
@@ -355,6 +369,7 @@ db.watchAllObjects<User>('users', userAdapter).listen((users) {
 | Method | Signature | Description |
 |---|---|---|
 | `watch<T>` | `Stream<T?> watch<T>(String collection, String key)` | Watches a single key for changes |
+| `watchObject<T>` | `Stream<T?> watchObject<T>(String collection, String key, DataModelAdapter<T> adapter)` | Watches a single key as a typed object; emits `null` when the key is absent |
 | `watchAll<T>` | `Stream<List<T>> watchAll<T>(String collection)` | Watches entire collection |
 | `watchAllObjects<T>` | `Stream<List<T>> watchAllObjects<T>(String collection, DataModelAdapter<T> adapter)` | Watches collection as typed objects |
 
