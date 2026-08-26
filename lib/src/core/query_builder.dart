@@ -92,7 +92,8 @@ final class InMemoryQueryBuilder<T> implements QueryBuilder<T> {
 
   @override
   Future<bool> deleteAll() async {
-    throw UnsupportedError('deleteAll via InMemoryQueryBuilder is not supported.');
+    throw UnsupportedError(
+        'deleteAll via InMemoryQueryBuilder is not supported.');
   }
 
   @override

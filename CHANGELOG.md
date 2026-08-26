@@ -1,3 +1,8 @@
+## 1.1.1
+
+* Fixed `repository` and `issue_tracker` links, which still pointed at the pre-rename GitHub path.
+* Formatted the package with `dart format`. No behavior changes.
+
 ## 1.1.0
 
 * Added `deleteAll(collection, keys)` for removing multiple keys in one call.

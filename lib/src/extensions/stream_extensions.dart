@@ -37,9 +37,8 @@ extension LocalDataSourceStreamX<T> on Stream<T> {
         previous = current;
         return true;
       }
-      final isEqual = equals != null
-          ? equals(previous as T, current)
-          : previous == current;
+      final isEqual =
+          equals != null ? equals(previous as T, current) : previous == current;
       previous = current;
       return !isEqual;
     });

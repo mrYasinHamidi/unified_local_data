@@ -63,7 +63,9 @@ final class IsarDataSource implements UnifiedDataSource {
   }
 
   void _ensureInitialized() {
-    if (!_initialized || _isar == null) throw const DataSourceNotInitializedException();
+    if (!_initialized || _isar == null) {
+      throw const DataSourceNotInitializedException();
+    }
   }
 
   String _compositeKey(String collection, String key) => '$collection::$key';
@@ -75,9 +77,15 @@ final class IsarDataSource implements UnifiedDataSource {
     return _kvCollection.filter().compositeKeyEqualTo(composite).findFirst();
   }
 
-  Future<List<IsarKvEntry>> _findEntries(String collection, List<String> keys) async {
-    final compositeKeys = keys.map((key) => _compositeKey(collection, key)).toList();
-    return _kvCollection.filter().anyOf(compositeKeys, (q, composite) => q.compositeKeyEqualTo(composite)).findAll();
+  Future<List<IsarKvEntry>> _findEntries(
+      String collection, List<String> keys) async {
+    final compositeKeys =
+        keys.map((key) => _compositeKey(collection, key)).toList();
+    return _kvCollection
+        .filter()
+        .anyOf(
+            compositeKeys, (q, composite) => q.compositeKeyEqualTo(composite))
+        .findAll();
   }
 
   @override
@@ -92,14 +100,18 @@ final class IsarDataSource implements UnifiedDataSource {
         ..value = jsonEncode(value);
 
       await _db.writeTxn(() async {
-        final existing = await _kvCollection.filter().compositeKeyEqualTo(composite).findFirst();
+        final existing = await _kvCollection
+            .filter()
+            .compositeKeyEqualTo(composite)
+            .findFirst();
         if (existing != null) {
           entry.id = existing.id;
         }
         await _kvCollection.put(entry);
       });
     } catch (e) {
-      throw DataSourceWriteException('Failed to put key=\$key in \$collection', e);
+      throw DataSourceWriteException(
+          'Failed to put key=\$key in \$collection', e);
     }
   }
 
@@ -111,7 +123,8 @@ final class IsarDataSource implements UnifiedDataSource {
       if (entry == null) return null;
       return jsonDecode(entry.value) as T;
     } catch (e) {
-      throw DataSourceReadException('Failed to get key=\$key from \$collection', e);
+      throw DataSourceReadException(
+          'Failed to get key=\$key from \$collection', e);
     }
   }
 
@@ -136,7 +149,8 @@ final class IsarDataSource implements UnifiedDataSource {
   @override
   Future<void> clear(String collection) async {
     _ensureInitialized();
-    final entries = await _kvCollection.filter().collectionEqualTo(collection).findAll();
+    final entries =
+        await _kvCollection.filter().collectionEqualTo(collection).findAll();
     final ids = entries.map((e) => e.id).toList();
     await _db.writeTxn(() => _kvCollection.deleteAll(ids));
   }
@@ -144,14 +158,16 @@ final class IsarDataSource implements UnifiedDataSource {
   @override
   Future<List<T>> getAll<T>(String collection) async {
     _ensureInitialized();
-    final entries = await _kvCollection.filter().collectionEqualTo(collection).findAll();
+    final entries =
+        await _kvCollection.filter().collectionEqualTo(collection).findAll();
     return entries.map((e) => jsonDecode(e.value) as T).toList();
   }
 
   @override
   Future<List<String>> getAllKeys(String collection) async {
     _ensureInitialized();
-    final entries = await _kvCollection.filter().collectionEqualTo(collection).findAll();
+    final entries =
+        await _kvCollection.filter().collectionEqualTo(collection).findAll();
     return entries.map((e) => e.key).toList();
   }
 
@@ -180,7 +196,8 @@ final class IsarDataSource implements UnifiedDataSource {
       final jsonString = jsonEncode(adapter.toJson(value));
       await put<String>(collection, key, jsonString);
     } catch (e) {
-      throw DataSourceWriteException('Failed to putObject key=\$key in \$collection', e);
+      throw DataSourceWriteException(
+          'Failed to putObject key=\$key in \$collection', e);
     }
   }
 
@@ -197,7 +214,8 @@ final class IsarDataSource implements UnifiedDataSource {
       final json = jsonDecode(raw) as JsonMap;
       return adapter.fromJson(json);
     } catch (e) {
-      throw DataSourceReadException('Failed to getObject key=\$key from \$collection', e);
+      throw DataSourceReadException(
+          'Failed to getObject key=\$key from \$collection', e);
     }
   }
 
@@ -207,7 +225,8 @@ final class IsarDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    final entries = await _kvCollection.filter().collectionEqualTo(collection).findAll();
+    final entries =
+        await _kvCollection.filter().collectionEqualTo(collection).findAll();
     return entries.map((e) {
       final outerJson = jsonDecode(e.value) as String;
       final json = jsonDecode(outerJson) as JsonMap;
@@ -224,7 +243,10 @@ final class IsarDataSource implements UnifiedDataSource {
     await _db.writeTxn(() async {
       for (final entry in entries.entries) {
         final composite = _compositeKey(collection, entry.key);
-        final existing = await _kvCollection.filter().compositeKeyEqualTo(composite).findFirst();
+        final existing = await _kvCollection
+            .filter()
+            .compositeKeyEqualTo(composite)
+            .findFirst();
 
         final kvEntry = IsarKvEntry()
           ..compositeKey = composite
@@ -292,7 +314,8 @@ final class IsarDataSource implements UnifiedDataSource {
         .filter()
         .collectionEqualTo(collection)
         .watch(fireImmediately: true)
-        .map((entries) => entries.map((e) => jsonDecode(e.value) as T).toList());
+        .map(
+            (entries) => entries.map((e) => jsonDecode(e.value) as T).toList());
   }
 
   @override
@@ -345,7 +368,8 @@ final class IsarDataSource implements UnifiedDataSource {
   @override
   Future<void> drop({String? collection}) async {
     if (collection != null) {
-      final entries = await _kvCollection.filter().collectionEqualTo(collection).findAll();
+      final entries =
+          await _kvCollection.filter().collectionEqualTo(collection).findAll();
       if (entries.isEmpty) return;
       final ids = entries.map((e) => e.id).toList();
       await _db.writeTxn(() => _kvCollection.deleteAll(ids));

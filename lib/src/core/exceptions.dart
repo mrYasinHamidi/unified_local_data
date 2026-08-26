@@ -5,7 +5,8 @@ sealed class LocalDataSourceException implements Exception {
   const LocalDataSourceException(this.message, [this.cause]);
 
   @override
-  String toString() => '[32m$runtimeType: $message${cause != null ? ' ($cause)' : ''}[0m';
+  String toString() =>
+      '[32m$runtimeType: $message${cause != null ? ' ($cause)' : ''}[0m';
 }
 
 final class DataSourceNotInitializedException extends LocalDataSourceException {

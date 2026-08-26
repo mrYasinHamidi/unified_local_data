@@ -88,7 +88,8 @@ final class HiveDataSource implements UnifiedDataSource {
       final box = await _openBox(collection);
       await box.put(key, value);
     } catch (e) {
-      throw DataSourceWriteException('Failed to put key=\$key in \$collection', e);
+      throw DataSourceWriteException(
+          'Failed to put key=\$key in \$collection', e);
     }
   }
 
@@ -101,7 +102,8 @@ final class HiveDataSource implements UnifiedDataSource {
       if (value == null) return null;
       return value as T;
     } catch (e) {
-      throw DataSourceReadException('Failed to get key=\$key from \$collection', e);
+      throw DataSourceReadException(
+          'Failed to get key=\$key from \$collection', e);
     }
   }
 
@@ -167,7 +169,8 @@ final class HiveDataSource implements UnifiedDataSource {
       final jsonString = jsonEncode(adapter.toJson(value));
       await box.put(key, jsonString);
     } catch (e) {
-      throw DataSourceWriteException('Failed to putObject key=\$key in \$collection', e);
+      throw DataSourceWriteException(
+          'Failed to putObject key=\$key in \$collection', e);
     }
   }
 
@@ -185,7 +188,8 @@ final class HiveDataSource implements UnifiedDataSource {
       final json = jsonDecode(raw as String) as JsonMap;
       return adapter.fromJson(json);
     } catch (e) {
-      throw DataSourceReadException('Failed to getObject key=\$key from \$collection', e);
+      throw DataSourceReadException(
+          'Failed to getObject key=\$key from \$collection', e);
     }
   }
 

@@ -11,12 +11,14 @@ abstract final class UnifiedDataSourceFactory {
   static UnifiedDataSource get instance {
     final inst = _instance;
     if (inst == null) {
-      throw StateError('UnifiedDataSourceFactory has not been initialized. Call create() first.');
+      throw StateError(
+          'UnifiedDataSourceFactory has not been initialized. Call create() first.');
     }
     return inst;
   }
 
-  static Future<UnifiedDataSource> create(UnifiedDataSourceConfig config) async {
+  static Future<UnifiedDataSource> create(
+      UnifiedDataSourceConfig config) async {
     final existing = _instance;
     if (existing != null) {
       await existing.dispose();
@@ -25,7 +27,8 @@ abstract final class UnifiedDataSourceFactory {
     final UnifiedDataSource dataSource = switch (config) {
       HiveDataSourceConfig c => HiveDataSource(config: c),
       IsarDataSourceConfig c => IsarDataSource(config: c),
-      _ => throw UnsupportedError('Unsupported config type: ${config.runtimeType}'),
+      _ => throw UnsupportedError(
+          'Unsupported config type: ${config.runtimeType}'),
     };
 
     await dataSource.init();
