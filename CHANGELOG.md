@@ -1,3 +1,7 @@
+## 1.1.2
+
+* Fixed a Flutter Web build failure (`The integer literal ... can't be represented exactly in JavaScript`) in the generated `IsarKvEntry` schema by rounding its schema/index ids to exactly-representable values. Any app depending on this package failed `flutter build web` before this fix, even if it never used the Isar engine.
+
 ## 1.1.1
 
 * Fixed `repository` and `issue_tracker` links, which still pointed at the pre-rename GitHub path.

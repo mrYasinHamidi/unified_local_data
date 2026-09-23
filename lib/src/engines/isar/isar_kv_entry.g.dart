@@ -15,7 +15,11 @@ extension GetIsarKvEntryCollection on Isar {
 
 const IsarKvEntrySchema = CollectionSchema(
   name: r'IsarKvEntry',
-  id: 660830258448412841,
+  // Rounded to the nearest exactly-representable double (dart2js/dartdevc
+  // reject literals that would lose precision as a JS number) so
+  // `flutter build web` doesn't fail; only needs to be a stable, unique
+  // schema id, not the exact fastHash() output.
+  id: 660830258448412800,
   properties: {
     r'collection': PropertySchema(
       id: 0,
@@ -45,7 +49,8 @@ const IsarKvEntrySchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'compositeKey': IndexSchema(
-      id: -66619599277560115,
+      // Rounded to the nearest exactly-representable double; see note on the schema id above.
+      id: -66619599277560112,
       name: r'compositeKey',
       unique: true,
       replace: true,
@@ -58,7 +63,8 @@ const IsarKvEntrySchema = CollectionSchema(
       ],
     ),
     r'collection': IndexSchema(
-      id: -1843270535372135219,
+      // Rounded to the nearest exactly-representable double; see note on the schema id above.
+      id: -1843270535372135168,
       name: r'collection',
       unique: false,
       replace: false,
