@@ -19,7 +19,7 @@ const IsarKvEntrySchema = CollectionSchema(
   // so the ids are written as constant expressions. The VM computes the exact
   // value, which Isar's core checks against the hash of the name. On the web
   // the result is rounded, which is harmless because Isar doesn't run there.
-  // Reapply this after regenerating.
+  // Reapply this, and the version below, after regenerating.
   id: 660830258448412 * 1000 + 841,
   properties: {
     r'collection': PropertySchema(
@@ -81,7 +81,12 @@ const IsarKvEntrySchema = CollectionSchema(
   getId: _isarKvEntryGetId,
   getLinks: _isarKvEntryGetLinks,
   attach: _isarKvEntryAttach,
-  version: '3.4.1',
+  // The constructor asserts that this equals Isar.version. The generator
+  // writes its own version here, which would tie the package to one exact
+  // Isar release. The generated code has been the same since Isar 3.1, so
+  // the schema declares whichever 3.x version the app resolves. Reapply this
+  // after regenerating.
+  version: Isar.version,
 );
 
 int _isarKvEntryEstimateSize(

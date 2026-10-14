@@ -12,16 +12,14 @@ dependencies:
   flutter:
     sdk: flutter
   hive_ce: ^2.21.0
-  # Exact: the generated IsarKvEntry schema asserts that it matches the
-  # Isar version it was generated with.
-  isar_community: 3.4.1
-  isar_community_flutter_libs: 3.4.1
+  isar_community: ^3.4.1
+  isar_community_flutter_libs: ^3.4.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  isar_community_generator: 3.4.1
+  isar_community_generator: ^3.4.1
   hive_ce_generator: ^1.11.3
   build_runner: ^2.16.2
   path_provider: ^2.1.6
