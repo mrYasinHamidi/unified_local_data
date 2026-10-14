@@ -1,0 +1,5 @@
+# Pub reads this file instead of a .gitignore here; the repository's root
+# .gitignore still applies.
+
+# Local development only
+pubspec_overrides.yaml

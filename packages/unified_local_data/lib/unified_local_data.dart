@@ -1,3 +1,10 @@
+/// Engine-agnostic local storage for Flutter.
+///
+/// Create a data source with [UnifiedDataSourceFactory.create] and a config,
+/// such as [UnifiedDataSourceConfig.hive], then use the [UnifiedDataSource]
+/// API: the same calls work on every engine. For Isar, add the
+/// `unified_local_data_isar` package. To write an engine of your own, see
+/// `package:unified_local_data/engine.dart`.
 library;
 
 export 'src/core/unified_data_source.dart';
@@ -11,7 +18,5 @@ export 'src/core/typedefs.dart';
 
 export 'src/engines/hive/hive_config.dart';
 export 'src/engines/hive/hive_data_source.dart';
-export 'src/engines/isar/isar_config.dart';
-export 'src/engines/isar/isar_data_source.dart';
 
 export 'src/extensions/stream_extensions.dart';

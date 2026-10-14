@@ -1,3 +1,27 @@
+## 2.0.0
+
+### Breaking changes
+
+* The Isar engine moved to its own package, [`unified_local_data_isar`](https://pub.dev/packages/unified_local_data_isar). This package no longer depends on Isar, so apps that only use Hive stop shipping Isar's native library (about 1 MB per platform), and the package now supports the web on pub.dev.
+  * Replace `UnifiedDataSourceConfig.isar(...)` with `IsarDataSourceConfig(...)` and import `package:unified_local_data_isar/unified_local_data_isar.dart`.
+* Removed `DatabaseEngine` and `UnifiedDataSourceConfig.engine`.
+* `UnifiedDataSourceConfig` subclasses implement `createDataSource()`, which builds the engine's data source. The factory calls it instead of matching on the config type, so any engine, including your own, can be created through `UnifiedDataSourceFactory.create`.
+
+Hive-only apps need no code changes: bump the constraint to `^2.0.0`.
+
+### Additions
+
+* `package:unified_local_data/engine.dart`, for engine authors: the whole API plus `guardRead`, `guardWrite`, `guardStream` and `InMemoryQueryBuilder`.
+* Documentation comments on the whole public API.
+
+### Fixes
+
+* If `UnifiedDataSourceFactory.create` fails, `instance` now throws instead of returning the previous, already disposed data source.
+
+### Dependencies
+
+* Removed `isar_community`, `isar_community_flutter_libs`, and the dev dependencies `isar_community_generator`, `hive_ce_generator` and `build_runner`.
+
 ## 1.2.1
 
 ### Fixes

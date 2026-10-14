@@ -7,8 +7,8 @@ import 'dart:io';
 
 import 'package:isar_community/isar.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:unified_local_data/src/engines/isar/isar_kv_entry.dart';
-import 'package:unified_local_data/unified_local_data.dart';
+import 'package:unified_local_data_isar/src/isar_kv_entry.dart';
+import 'package:unified_local_data_isar/unified_local_data_isar.dart';
 
 import 'support/operations.dart';
 
@@ -50,7 +50,7 @@ void main() {
   late Directory dir;
 
   Future<UnifiedDataSource> start() => UnifiedDataSourceFactory.create(
-        UnifiedDataSourceConfig.isar(directory: dir.path, schemas: []),
+        IsarDataSourceConfig(directory: dir.path),
       );
 
   setUpAll(() async {
@@ -192,7 +192,7 @@ void main() {
 
     test('drop throws before init()', () {
       final db = IsarDataSource(
-        config: IsarDataSourceConfig(directory: dir.path, schemas: []),
+        config: IsarDataSourceConfig(directory: dir.path),
       );
       expect(db.drop(), throwsA(isA<DataSourceNotInitializedException>()));
     });

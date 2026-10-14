@@ -1,26 +1,30 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:isar_community/isar.dart';
+import 'package:isar_community/isar.dart' hide QueryBuilder;
+import 'package:unified_local_data/engine.dart';
 
-import '../../core/data_model.dart';
-import '../../core/exceptions.dart';
-import '../../core/guard.dart';
-import '../../core/unified_data_source.dart';
-import '../../core/native_collection_accessor.dart';
-import '../../core/query_builder.dart' as core;
-import '../../core/typedefs.dart';
 import 'isar_config.dart';
 import 'isar_native_accessor.dart';
 import 'isar_txn.dart';
 import 'isar_kv_entry.dart';
 
+/// The Isar engine.
+///
+/// The generic API stores every entry, as JSON, in one internal Isar
+/// collection keyed by collection and key. Your own `@collection` classes
+/// are available through [native] and [rawInstance].
+///
+/// [transaction] runs its action in one Isar write transaction, which every
+/// write inside it joins. Isar doesn't run on the web.
 final class IsarDataSource implements UnifiedDataSource {
+  /// The configuration this data source was created with.
   final IsarDataSourceConfig config;
   Isar? _isar;
   bool _initialized = false;
   final Map<String, NativeCollectionAccessor<dynamic>> _nativeAccessors = {};
 
+  /// Creates an Isar data source for [config]. Call [init] before using it.
   IsarDataSource({required this.config});
 
   Isar get _db {
@@ -29,6 +33,10 @@ final class IsarDataSource implements UnifiedDataSource {
     return db;
   }
 
+  /// The open Isar instance, for Isar's own query API.
+  ///
+  /// Code that uses it works only with Isar. Don't call its `writeTxn()`
+  /// inside [transaction]: Isar doesn't nest transactions.
   Isar get rawInstance {
     _ensureInitialized();
     return _db;
@@ -40,7 +48,7 @@ final class IsarDataSource implements UnifiedDataSource {
 
     final schemas = <CollectionSchema<dynamic>>[
       IsarKvEntrySchema,
-      ...config.schemas.cast<CollectionSchema<dynamic>>(),
+      ...config.schemas,
     ];
 
     _isar = await guardRead(
@@ -361,12 +369,12 @@ final class IsarDataSource implements UnifiedDataSource {
   }
 
   @override
-  core.QueryBuilder<T> query<T>(
+  QueryBuilder<T> query<T>(
     String collection,
     DataModelAdapter<T> adapter,
   ) {
     _ensureInitialized();
-    return core.InMemoryQueryBuilder<T>(
+    return InMemoryQueryBuilder<T>(
       fetcher: () => getAllObjects<T>(collection, adapter),
       watcher: () => watchAllObjects<T>(collection, adapter),
     );

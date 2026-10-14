@@ -1,15 +1,17 @@
 import 'dart:async';
 
-import 'package:isar_community/isar.dart';
+import 'package:isar_community/isar.dart' hide QueryBuilder;
+import 'package:unified_local_data/engine.dart';
 
-import '../../core/native_collection_accessor.dart';
-import '../../core/query_builder.dart' as core;
 import 'isar_txn.dart';
 
+/// A [NativeCollectionAccessor] over an Isar collection. Its writes join a
+/// running `transaction()`.
 final class IsarNativeAccessor<T> implements NativeCollectionAccessor<T> {
   final Isar _isar;
   final IsarCollection<T> _collection;
 
+  /// Creates an accessor over [_collection] in [_isar].
   IsarNativeAccessor(this._isar, this._collection);
 
   @override
@@ -58,8 +60,8 @@ final class IsarNativeAccessor<T> implements NativeCollectionAccessor<T> {
   }
 
   @override
-  core.QueryBuilder<T> query() {
-    return core.InMemoryQueryBuilder<T>(
+  QueryBuilder<T> query() {
+    return InMemoryQueryBuilder<T>(
       fetcher: () => _collection.where().findAll(),
       watcher: () => _collection.where().watch(fireImmediately: true),
     );

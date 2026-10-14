@@ -1,17 +1,44 @@
 import 'typedefs.dart';
 
+/// A chainable query over the objects of one collection.
+///
+/// The filtering methods return the same builder, so calls chain. Nothing
+/// runs until [findAll], [findFirst], [count] or [watch].
 abstract interface class QueryBuilder<T> {
+  /// Keeps only the objects for which [clause] returns true. Several calls
+  /// combine with AND.
   QueryBuilder<T> where(WhereClause<T> clause);
+
+  /// Orders the results with [comparator], replacing any earlier order.
   QueryBuilder<T> sortBy(SortComparator<T> comparator);
+
+  /// Returns at most [count] results.
   QueryBuilder<T> limit(int count);
+
+  /// Skips the first [start] results.
   QueryBuilder<T> offset(int start);
+
+  /// Runs the query and returns every result.
   Future<List<T>> findAll();
+
+  /// Runs the query and returns the first result, or null if there is none.
   Future<T?> findFirst();
+
+  /// Runs the query and returns the number of results.
   Future<int> count();
+
+  /// Deletes the results, where the engine supports it.
   Future<bool> deleteAll();
+
+  /// Emits the results now, and again whenever the collection changes.
   Stream<List<T>> watch();
 }
 
+/// A [QueryBuilder] that loads every object and filters, sorts and pages
+/// them in memory.
+///
+/// For engines without a query language of their own. [deleteAll] isn't
+/// supported and throws an [UnsupportedError].
 final class InMemoryQueryBuilder<T> implements QueryBuilder<T> {
   final Future<List<T>> Function() _fetcher;
   final Stream<List<T>> Function() _watcher;
@@ -20,6 +47,8 @@ final class InMemoryQueryBuilder<T> implements QueryBuilder<T> {
   int? _limit;
   int? _offset;
 
+  /// Creates a builder that loads the objects with [fetcher] and watches
+  /// them with [watcher].
   InMemoryQueryBuilder({
     required Future<List<T>> Function() fetcher,
     required Stream<List<T>> Function() watcher,

@@ -1,8 +1,14 @@
 name: unified_local_data
-description: A universal, engine-agnostic local database abstraction layer for Flutter.
-version: 1.2.1
+description: Engine-agnostic local storage for Flutter. One API over Hive, Isar or your own engine, with typed objects, queries, reactive streams and transactions.
+version: 2.0.0
 repository: https://github.com/mrYasinHamidi/unified_local_data/tree/main/packages/unified_local_data
 issue_tracker: https://github.com/mrYasinHamidi/unified_local_data/issues
+topics:
+  - database
+  - storage
+  - hive
+  - offline
+  - persistence
 
 environment:
   sdk: ^3.4.0
@@ -12,15 +18,10 @@ dependencies:
   flutter:
     sdk: flutter
   hive_ce: ^2.21.0
-  isar_community: ^3.4.1
-  isar_community_flutter_libs: ^3.4.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  isar_community_generator: ^3.4.1
-  hive_ce_generator: ^1.11.3
-  build_runner: ^2.16.2
   path_provider: ^2.1.6
   web: ^1.1.1

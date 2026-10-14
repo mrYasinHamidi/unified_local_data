@@ -14,18 +14,26 @@ import '../../core/typedefs.dart';
 import 'hive_config.dart';
 import 'hive_native_accessor.dart';
 
+/// The Hive engine: each collection is a Hive box, holding values under
+/// string keys.
+///
+/// Usually created through `UnifiedDataSourceFactory.create` with a
+/// [HiveDataSourceConfig]. Hive has no transactions, so [transaction] runs
+/// its action as is.
 final class HiveDataSource implements UnifiedDataSource {
   /// The box where the data source records the name of every collection it
   /// opens, so that [drop] can reach collections not opened in the current
   /// run. Don't use it as a collection name.
   static const registryBoxName = '_uld_collections';
 
+  /// The configuration this data source was created with.
   final HiveDataSourceConfig config;
   final Map<String, hive.Box<dynamic>> _boxCache = {};
   final Map<String, NativeCollectionAccessor<dynamic>> _nativeAccessors = {};
   hive.Box<dynamic>? _registry;
   bool _initialized = false;
 
+  /// Creates a Hive data source for [config]. Call [init] before using it.
   HiveDataSource({required this.config});
 
   @override
@@ -78,6 +86,11 @@ final class HiveDataSource implements UnifiedDataSource {
     return box;
   }
 
+  /// Opens the box [name] typed as `Box<T>`, for values stored through a
+  /// Hive type adapter, and returns it.
+  ///
+  /// Register the adapter first. Once the box is open, [native] returns an
+  /// accessor for it. The collection is recorded, so [drop] covers it.
   Future<hive.Box<T>> openTypedBox<T>(String name) async {
     _ensureInitialized();
     return guardRead('Failed to open box "$name"', () async {

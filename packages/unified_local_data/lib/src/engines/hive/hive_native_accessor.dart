@@ -5,9 +5,11 @@ import 'package:hive_ce/hive_ce.dart';
 import '../../core/native_collection_accessor.dart';
 import '../../core/query_builder.dart';
 
+/// A [NativeCollectionAccessor] over a typed Hive box.
 final class HiveNativeAccessor<T> implements NativeCollectionAccessor<T> {
   final Box<T> _box;
 
+  /// Creates an accessor over [_box].
   HiveNativeAccessor(this._box);
 
   @override

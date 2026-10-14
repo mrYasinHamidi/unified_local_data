@@ -1,13 +1,14 @@
 import 'unified_data_source.dart';
 import 'unified_data_source_config.dart';
-import '../engines/hive/hive_config.dart';
-import '../engines/hive/hive_data_source.dart';
-import '../engines/isar/isar_config.dart';
-import '../engines/isar/isar_data_source.dart';
 
+/// Creates the app's [UnifiedDataSource] and keeps it as a singleton.
 abstract final class UnifiedDataSourceFactory {
   static UnifiedDataSource? _instance;
 
+  /// The data source from the last successful [create].
+  ///
+  /// Throws a [StateError] before [create], after [reset], and after a
+  /// [create] that failed.
   static UnifiedDataSource get instance {
     final inst = _instance;
     if (inst == null) {
@@ -17,27 +18,28 @@ abstract final class UnifiedDataSourceFactory {
     return inst;
   }
 
+  /// Builds the data source [config] describes, opens it, and makes it the
+  /// [instance].
+  ///
+  /// Disposes the previous [instance] first, if there is one.
   static Future<UnifiedDataSource> create(
       UnifiedDataSourceConfig config) async {
     final existing = _instance;
     if (existing != null) {
+      _instance = null;
       await existing.dispose();
     }
 
-    final UnifiedDataSource dataSource = switch (config) {
-      HiveDataSourceConfig c => HiveDataSource(config: c),
-      IsarDataSourceConfig c => IsarDataSource(config: c),
-      _ => throw UnsupportedError(
-          'Unsupported config type: ${config.runtimeType}'),
-    };
-
+    final dataSource = config.createDataSource();
     await dataSource.init();
     _instance = dataSource;
     return dataSource;
   }
 
+  /// Disposes the [instance], if there is one, and forgets it.
   static Future<void> reset() async {
-    await _instance?.dispose();
+    final existing = _instance;
     _instance = null;
+    await existing?.dispose();
   }
 }

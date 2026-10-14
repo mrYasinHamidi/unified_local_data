@@ -1,0 +1,5 @@
+# Builds against the unified_local_data in this repository instead of the
+# published one. Not part of the published package.
+dependency_overrides:
+  unified_local_data:
+    path: ../unified_local_data

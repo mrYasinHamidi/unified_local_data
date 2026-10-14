@@ -1,0 +1,30 @@
+name: unified_local_data_isar
+description: The Isar engine for unified_local_data. Keeps the same storage API on Isar Community, with real transactions and native @collection access.
+version: 1.0.0
+repository: https://github.com/mrYasinHamidi/unified_local_data/tree/main/packages/unified_local_data_isar
+issue_tracker: https://github.com/mrYasinHamidi/unified_local_data/issues
+topics:
+  - database
+  - storage
+  - isar
+  - offline
+  - persistence
+
+environment:
+  sdk: ^3.4.0
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  isar_community: ^3.4.1
+  isar_community_flutter_libs: ^3.4.1
+  unified_local_data: ^2.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  isar_community_generator: ^3.4.1
+  build_runner: ^2.16.2
+  path_provider: ^2.1.6

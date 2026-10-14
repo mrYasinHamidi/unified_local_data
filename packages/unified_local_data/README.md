@@ -26,6 +26,7 @@
 - [Quick Start](#quick-start)
   - [Initialize with Hive](#initialize-with-hive)
   - [Initialize with Isar](#initialize-with-isar)
+- [Upgrading to 2.0](#upgrading-to-20)
 - [Core API Reference](#core-api-reference)
   - [Primitives (put / get / delete)](#primitives)
   - [Complex Objects (Generic Path)](#complex-objects-generic-path)
@@ -39,7 +40,6 @@
   - [NativeCollectionAccessor API](#nativecollectionaccessor-api)
   - [Hive — Native TypeAdapter Flow](#hive--native-typeadapter-flow)
   - [Isar — Native @collection Flow](#isar--native-collection-flow)
-  - [Isar — Raw Instance Access](#isar--raw-instance-access)
   - [When to Use Which Path](#when-to-use-which-path)
 - [Swapping Engines](#swapping-engines)
 - [Extending with a New Engine](#extending-with-a-new-engine)
@@ -55,6 +55,8 @@
 ## Overview
 
 `unified_local_data` is a **production-grade Dart package** that provides a single, unified interface for all local database operations in Flutter apps. It decouples your application logic from any specific database engine using the **Strategy Pattern**, enabling you to switch between [Hive CE](https://pub.dev/packages/hive_ce) and [Isar Community](https://pub.dev/packages/isar_community) — or plug in any future engine — with zero refactoring.
+
+This package contains the API and the Hive engine, and runs on every Flutter platform, the web included. The Isar engine is a separate package, [`unified_local_data_isar`](https://pub.dev/packages/unified_local_data_isar), so apps that don't use Isar don't ship its native library.
 
 The package offers **two data access paths**:
 
@@ -100,6 +102,7 @@ The package offers **two data access paths**:
                ▼                               ▼
 ┌─────────────────────────────┐ ┌──────────────────────────────┐
 │  HiveDataSource             │ │  IsarDataSource              │
+│  (this package)             │ │  (unified_local_data_isar)   │
 │  implements                 │ │  implements                  │
 │  UnifiedDataSource          │ │  UnifiedDataSource           │
 │                             │ │                              │
@@ -113,11 +116,11 @@ The package offers **two data access paths**:
 
 ## Supported Engines
 
-| Engine | Use Case | Package |
-|---|---|---|
-| **Hive CE** | Fast key-value storage, lightweight apps, caching | [hive_ce](https://pub.dev/packages/hive_ce) |
-| **Isar Community** | Complex queries, relational data, large datasets | [isar_community](https://pub.dev/packages/isar_community) |
-| **Your Engine** | Anything else, by implementing `UnifiedDataSource` | See [Extending](#extending-with-a-new-engine) |
+| Engine | Use Case | Comes from | Platforms |
+|---|---|---|---|
+| **Hive CE** ([hive_ce](https://pub.dev/packages/hive_ce)) | Fast key-value storage, lightweight apps, caching | This package | All, including web |
+| **Isar Community** ([isar_community](https://pub.dev/packages/isar_community)) | Complex queries, relational data, large datasets | [unified_local_data_isar](https://pub.dev/packages/unified_local_data_isar) | All but web |
+| **Your Engine** | Anything else, by implementing `UnifiedDataSource` | Your code | Yours to choose |
 
 ---
 
@@ -131,10 +134,16 @@ Or add it to your `pubspec.yaml` yourself:
 
 ```yaml
 dependencies:
-  unified_local_data: ^1.2.1
+  unified_local_data: ^2.0.0
 ```
 
-The package depends on Hive CE and Isar Community itself, so the generic path needs nothing else. If you use the native path and import `hive_ce` or `isar_community` in your own code, add that package to your `pubspec.yaml` too, along with its generator for `build_runner`.
+For the Isar engine, add [`unified_local_data_isar`](https://pub.dev/packages/unified_local_data_isar) instead. It depends on this package and re-exports it:
+
+```bash
+flutter pub add unified_local_data_isar
+```
+
+Each package depends on its engine, so the generic path needs nothing else. If you use the native path and import `hive_ce` or `isar_community` in your own code, add that package to your `pubspec.yaml` too, along with its generator for `build_runner`.
 
 ---
 
@@ -182,8 +191,10 @@ UnifiedDataSourceConfig.hive(
 
 ### Initialize with Isar
 
+With [`unified_local_data_isar`](https://pub.dev/packages/unified_local_data_isar) added:
+
 ```dart
-import 'package:unified_local_data/unified_local_data.dart';
+import 'package:unified_local_data_isar/unified_local_data_isar.dart';
 import 'package:path_provider/path_provider.dart';
 
 Future<void> main() async {
@@ -191,9 +202,8 @@ Future<void> main() async {
   final dir = await getApplicationDocumentsDirectory();
 
   final db = await UnifiedDataSourceFactory.create(
-    UnifiedDataSourceConfig.isar(
+    IsarDataSourceConfig(
       directory: dir.path,
-      schemas: [],
       maxSizeMiB: 512,
       inspector: true,
     ),
@@ -205,6 +215,22 @@ Future<void> main() async {
 ```
 
 > **That's it.** The rest of your code uses the same `UnifiedDataSource` API regardless of which engine is active.
+
+---
+
+## Upgrading to 2.0
+
+2.0 moves the Isar engine into its own package. Hive-only apps need no code changes; bump the constraint to `^2.0.0`.
+
+| 1.x | 2.0 |
+|---|---|
+| `UnifiedDataSourceConfig.isar(...)` | `IsarDataSourceConfig(...)`, from `unified_local_data_isar` |
+| `IsarDataSource`, `IsarDataSourceConfig` imported from `unified_local_data` | Import `package:unified_local_data_isar/unified_local_data_isar.dart` |
+| `schemas: List<dynamic>` | `schemas: List<CollectionSchema<dynamic>>`, optional |
+| `DatabaseEngine` and `UnifiedDataSourceConfig.engine` | Removed. Check the config's type instead. |
+| A config subclass had no way into the factory | Override `createDataSource()`; see [Extending](#extending-with-a-new-engine) |
+
+Isar's data is untouched: the Isar engine stores it exactly as 1.x did.
 
 ---
 
@@ -630,139 +656,7 @@ Future<void> main() async {
 
 ### Isar — Native @collection Flow
 
-Use Isar's native `@collection` annotation for full index and schema support.
-
-**Step 1 — Define your Isar model:**
-
-```dart
-import 'package:isar_community/isar.dart';
-
-part 'product_entity.g.dart';
-
-@collection
-class ProductEntity {
-  Id id = Isar.autoIncrement;
-
-  @Index()
-  late String title;
-
-  late double price;
-
-  @Index(composite: [CompositeIndex('price')])
-  late String category;
-
-  late DateTime createdAt;
-}
-
-@embedded
-class Address {
-  late String street;
-  late String city;
-  late String zipCode;
-}
-```
-
-**Step 2 — Run code generation:**
-
-```bash
-dart run build_runner build --delete-conflicting-outputs
-```
-
-**Step 3 — Pass schemas at init and use:**
-
-```dart
-import 'package:unified_local_data/unified_local_data.dart';
-import 'package:path_provider/path_provider.dart';
-
-import 'models/product_entity.dart';
-
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final dir = await getApplicationDocumentsDirectory();
-
-  final db = await UnifiedDataSourceFactory.create(
-    UnifiedDataSourceConfig.isar(
-      directory: dir.path,
-      schemas: [ProductEntitySchema],
-    ),
-  );
-
-  final products = db.native<ProductEntity>('products');
-
-  await products.put(
-    ProductEntity()
-      ..title = 'Flutter Widget'
-      ..price = 29.99
-      ..category = 'Development'
-      ..createdAt = DateTime.now(),
-  );
-
-  await products.putAll([
-    ProductEntity()
-      ..title = 'Dart Package'
-      ..price = 9.99
-      ..category = 'Development'
-      ..createdAt = DateTime.now(),
-    ProductEntity()
-      ..title = 'UI Kit'
-      ..price = 49.99
-      ..category = 'Design'
-      ..createdAt = DateTime.now(),
-  ]);
-
-  final allProducts = await products.getAll();
-
-  final product = await products.getById(1);
-
-  products.watchAll().listen((productList) {
-    print('Products changed: ${productList.length}');
-  });
-
-  final expensive = await products
-      .query()
-      .where((p) => p.price > 20.0)
-      .sortBy((a, b) => b.price.compareTo(a.price))
-      .limit(5)
-      .findAll();
-}
-```
-
----
-
-### Isar — Raw Instance Access
-
-When you need Isar's **full native query DSL** — generated `.filter()`, `.sortBy()`, composite index queries — access the raw Isar instance directly:
-
-```dart
-import 'package:isar_community/isar.dart';
-import 'package:unified_local_data/unified_local_data.dart';
-
-import 'models/product_entity.dart';
-
-Future<void> advancedIsarQuery(UnifiedDataSource db) async {
-  final isarDb = db as IsarDataSource;
-  final isar = isarDb.rawInstance;
-
-  final results = await isar.productEntitys
-      .filter()
-      .categoryEqualTo('Development')
-      .and()
-      .priceGreaterThan(10.0)
-      .sortByPriceDesc()
-      .limit(20)
-      .findAll();
-
-  isar.productEntitys
-      .filter()
-      .priceGreaterThan(50)
-      .watch(fireImmediately: true)
-      .listen((premiumProducts) {
-    print('Premium products: ${premiumProducts.length}');
-  });
-}
-```
-
-> ⚠️ **Warning:** Using `rawInstance` ties your code directly to Isar. This should be limited to repository implementations where you have consciously chosen Isar as the engine.
+With the Isar engine, `db.native<T>()` works on your own `@collection` classes, and `IsarDataSource.rawInstance` gives you Isar's full query language. Both are covered in the [`unified_local_data_isar` README](https://pub.dev/packages/unified_local_data_isar).
 
 ---
 
@@ -790,9 +684,10 @@ final db = await UnifiedDataSourceFactory.create(
   UnifiedDataSourceConfig.hive(directory: dir.path),
 );
 
-// Switch to Isar — no other code changes needed (for Generic Path)
+// Switch to Isar, from unified_local_data_isar — no other code changes
+// needed (for Generic Path)
 final db = await UnifiedDataSourceFactory.create(
-  UnifiedDataSourceConfig.isar(directory: dir.path, schemas: []),
+  IsarDataSourceConfig(directory: dir.path),
 );
 ```
 
@@ -803,7 +698,7 @@ Swap at runtime:
 await UnifiedDataSourceFactory.reset();
 
 await UnifiedDataSourceFactory.create(
-  UnifiedDataSourceConfig.isar(directory: dir.path, schemas: []),
+  IsarDataSourceConfig(directory: dir.path),
 );
 
 final db = UnifiedDataSourceFactory.instance;
@@ -823,53 +718,60 @@ await db.dispose(); // closes the DB and frees all resources
 
 ## Extending with a New Engine
 
-`UnifiedDataSource` is an ordinary interface, so another engine (Drift, Sqflite, …) can sit behind it. There are two ways to add one.
+`UnifiedDataSource` is an ordinary interface, so another engine (Drift, Sqflite, …) can sit behind it, in your app or in a package of its own. The Isar engine, [`unified_local_data_isar`](https://pub.dev/packages/unified_local_data_isar), is built exactly this way.
 
-### In your app
+An engine has two parts:
 
-Implement `UnifiedDataSource` and create the data source yourself. `UnifiedDataSourceFactory` only builds the built-in engines, so it can't create this one; keep the instance wherever your app keeps its services.
+1. A `UnifiedDataSource` implementation.
+2. A `UnifiedDataSourceConfig` subclass whose `createDataSource()` builds it. `UnifiedDataSourceFactory.create` calls `createDataSource()`, then `init()`.
+
+Import `package:unified_local_data/engine.dart`. Besides the whole API, it exports helpers that make an engine behave like the built-in ones:
+
+- `guardRead`, `guardWrite` and `guardStream` report the engine's errors as `DataSourceReadException` and `DataSourceWriteException`, keeping the original as `cause`.
+- `InMemoryQueryBuilder` answers `query()` for engines without a query language.
 
 ```dart
-final class DriftDataSource implements UnifiedDataSource {
-  DriftDataSource({required this.databaseName});
+import 'package:unified_local_data/engine.dart';
 
-  final String databaseName;
+final class DriftDataSourceConfig extends UnifiedDataSourceConfig {
+  const DriftDataSourceConfig({required super.directory, required this.name});
+
+  final String name;
+
+  @override
+  UnifiedDataSource createDataSource() => DriftDataSource(config: this);
+}
+
+final class DriftDataSource implements UnifiedDataSource {
+  DriftDataSource({required this.config});
+
+  final DriftDataSourceConfig config;
 
   @override
   Future<void> init() async { /* open the Drift database */ }
 
   @override
-  Future<void> put<T>(String collection, String key, T value) async { /* ... */ }
+  Future<T?> get<T>(String collection, String key) => guardRead(
+        'Failed to get key "$key" from "$collection"',
+        () async { /* read through Drift */ },
+      );
 
   @override
-  NativeCollectionAccessor<T> native<T>(String collection) { /* ... */ }
+  QueryBuilder<T> query<T>(String collection, DataModelAdapter<T> adapter) =>
+      InMemoryQueryBuilder<T>(
+        fetcher: () => getAllObjects(collection, adapter),
+        watcher: () => watchAllObjects(collection, adapter),
+      );
 
   // ... implement all other methods
 }
 
-final db = DriftDataSource(databaseName: 'app');
-await db.init();
+final db = await UnifiedDataSourceFactory.create(
+  DriftDataSourceConfig(directory: dir.path, name: 'app'),
+);
 ```
 
-Code written against `UnifiedDataSource` works with it unchanged. To behave like the built-in engines, report failures as `DataSourceReadException` and `DataSourceWriteException` (see [Error Handling](#error-handling)).
-
-### In this package
-
-For `UnifiedDataSourceFactory.create()` to build the new engine, the package itself changes in three places:
-
-1. Add a value to `DatabaseEngine` in `lib/src/core/unified_data_source_config.dart`, and a factory constructor on `UnifiedDataSourceConfig` if you want one.
-2. Add the config class, which extends `UnifiedDataSourceConfig`, and the data source under `lib/src/engines/<engine>/`, and export both from `lib/unified_local_data.dart`.
-3. Add a case to the `switch` in `UnifiedDataSourceFactory.create()`:
-
-```dart
-final UnifiedDataSource dataSource = switch (config) {
-  HiveDataSourceConfig c => HiveDataSource(config: c),
-  IsarDataSourceConfig c => IsarDataSource(config: c),
-  DriftDataSourceConfig c => DriftDataSource(config: c),
-  _ => throw UnsupportedError(
-      'Unsupported config type: ${config.runtimeType}'),
-};
-```
+Code written against `UnifiedDataSource` works with it unchanged.
 
 ---
 
@@ -945,7 +847,7 @@ db.watch<String>('settings', 'theme')
 | Pattern | Where | Purpose |
 |---|---|---|
 | **Strategy** | `UnifiedDataSource` interface + engine implementations | Swap database engine without changing consumer code |
-| **Factory** | `UnifiedDataSourceFactory` | Unified creation by matching on the config type |
+| **Factory** | `UnifiedDataSourceFactory` + `UnifiedDataSourceConfig.createDataSource()` | Each config builds its own engine; the factory opens it and keeps it |
 | **Adapter** | `DataModelAdapter<T>` + `NativeCollectionAccessor<T>` | Bridge between domain models and storage |
 | **Repository** | Each engine implementation | Encapsulates all data access behind a single contract |
 | **Singleton** | `UnifiedDataSourceFactory._instance` | Single database instance across the app |
@@ -958,44 +860,38 @@ db.watch<String>('settings', 'theme')
 ## Folder Structure
 
 ```
-unified_local_data/
-├── pubspec.yaml
-├── example/
-│   └── lib/main.dart                              # Minimal Hive example
-├── lib/
-│   ├── unified_local_data.dart                    # Public barrel export
-│   └── src/
-│       ├── core/
-│       │   ├── unified_data_source.dart           # The UnifiedDataSource interface
-│       │   ├── unified_data_source_config.dart    # Base config and DatabaseEngine
-│       │   ├── unified_data_source_factory.dart   # UnifiedDataSourceFactory
-│       │   ├── data_model.dart                    # DataModel<T> + DataModelAdapter<T>
-│       │   ├── native_collection_accessor.dart    # Native engine access interface
-│       │   ├── query_builder.dart                 # QueryBuilder<T> + in-memory builder
-│       │   ├── exceptions.dart                    # Sealed exception hierarchy
-│       │   ├── guard.dart                         # Wraps engine errors in those exceptions
-│       │   └── typedefs.dart                      # Shared type aliases
-│       ├── engines/
-│       │   ├── hive/
-│       │   │   ├── hive_data_source.dart          # Hive implementation
-│       │   │   ├── hive_native_accessor.dart      # Hive TypeAdapter accessor
-│       │   │   └── hive_config.dart               # Hive-specific configuration
-│       │   └── isar/
-│       │       ├── isar_data_source.dart          # Isar implementation
-│       │       ├── isar_native_accessor.dart      # Isar @collection accessor
-│       │       ├── isar_config.dart               # Isar-specific configuration
-│       │       ├── isar_txn.dart                  # Write transactions that join transaction()
-│       │       ├── isar_kv_entry.dart             # Internal @collection for the generic path
-│       │       └── isar_kv_entry.g.dart           # Generated Isar schema (build_runner)
-│       └── extensions/
-│           └── stream_extensions.dart             # debounceTime, distinctUntilChanged
-└── test/
-    ├── hive_data_source_test.dart                 # Hive on the VM
-    ├── hive_web_drop_test.dart                    # Hive in the browser
-    ├── isar_data_source_test.dart                 # Isar on the VM
-    ├── exceptions_test.dart
-    ├── unified_data_source_test.dart
-    └── support/operations.dart                    # Shared failure tests
+unified_local_data/                                # The GitHub repository
+└── packages/
+    ├── unified_local_data/                        # This package
+    │   ├── pubspec.yaml
+    │   ├── example/lib/main.dart                  # Minimal Hive example
+    │   ├── lib/
+    │   │   ├── unified_local_data.dart            # The public API
+    │   │   ├── engine.dart                        # The API plus helpers for engine authors
+    │   │   └── src/
+    │   │       ├── core/
+    │   │       │   ├── unified_data_source.dart          # The UnifiedDataSource interface
+    │   │       │   ├── unified_data_source_config.dart   # Base config; builds the data source
+    │   │       │   ├── unified_data_source_factory.dart  # UnifiedDataSourceFactory
+    │   │       │   ├── data_model.dart                   # DataModel<T> + DataModelAdapter<T>
+    │   │       │   ├── native_collection_accessor.dart   # Native engine access interface
+    │   │       │   ├── query_builder.dart                # QueryBuilder<T> + in-memory builder
+    │   │       │   ├── exceptions.dart                   # Sealed exception hierarchy
+    │   │       │   ├── guard.dart                        # Wraps engine errors in those exceptions
+    │   │       │   └── typedefs.dart                     # Shared type aliases
+    │   │       ├── engines/hive/
+    │   │       │   ├── hive_data_source.dart             # Hive implementation
+    │   │       │   ├── hive_native_accessor.dart         # Hive TypeAdapter accessor
+    │   │       │   └── hive_config.dart                  # Hive-specific configuration
+    │   │       └── extensions/
+    │   │           └── stream_extensions.dart            # debounceTime, distinctUntilChanged
+    │   └── test/                                  # Hive on the VM and in the browser
+    └── unified_local_data_isar/                   # The Isar engine, published separately
+        ├── example/lib/main.dart
+        ├── lib/
+        │   ├── unified_local_data_isar.dart       # Re-exports unified_local_data
+        │   └── src/                               # IsarDataSource, IsarDataSourceConfig, ...
+        └── test/                                  # Isar on the VM
 ```
 
 ---
@@ -1005,7 +901,7 @@ unified_local_data/
 <details>
 <summary><strong>Can I use this in a pure Dart project (no Flutter)?</strong></summary>
 
-No. The package depends on the Flutter SDK and on `isar_community_flutter_libs`, a Flutter plugin, so it needs a Flutter project. Its tests do run on the Dart VM through `flutter test`, with a temporary directory in place of `path_provider`.
+No. The package depends on the Flutter SDK, so it needs a Flutter project. Its tests do run on the Dart VM through `flutter test`, with a temporary directory in place of `path_provider`.
 </details>
 
 <details>
@@ -1030,7 +926,7 @@ await hiveDb.openTypedBox<UserEntity>('users');
 **Native Path:** Yes. Define your `@collection` classes, run `build_runner`, and pass schemas at initialization:
 
 ```dart
-UnifiedDataSourceConfig.isar(
+IsarDataSourceConfig(
   directory: dir.path,
   schemas: [ProductEntitySchema, OrderEntitySchema],
 )
