@@ -1,3 +1,19 @@
+## 1.2.1
+
+### Fixes
+
+* Isar: `transaction()` works. Every data source write opened its own Isar transaction, and Isar doesn't nest them, so any write inside `transaction()` failed. Writes inside it, including writes through `native<T>()` and a nested `transaction()`, now join the running transaction. If the action throws, all of its writes roll back.
+* Isar: `drop()` with no collection works. It cleared the database outside a write transaction, which Isar refuses, so it always failed.
+
+### Dependencies
+
+* `isar_community` and `isar_community_flutter_libs` are `^3.4.1` again instead of exactly 3.4.1, which pub warned about. The generated schema now declares the Isar version the app resolves, so it compiles against any 3.x release from 3.4.1 on.
+
+### Documentation
+
+* The README uses the real API names (`UnifiedDataSourceFactory`, `UnifiedDataSourceConfig`, `UnifiedDataSource`, `package:unified_local_data/unified_local_data.dart`) instead of names that never existed.
+* Corrected the Installation section, the architecture diagram, the folder structure, the transaction notes, and the guide to adding an engine. The package needs Flutter; the FAQ said it worked in pure Dart.
+
 ## 1.2.0
 
 ### Fixes
