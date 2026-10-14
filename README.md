@@ -169,6 +169,24 @@ Future<void> main() async {
 }
 ```
 
+| Option | Description |
+|---|---|
+| `directory` | Where Hive keeps its box files. Ignored on the web. |
+| `preloadBoxes` | Collections opened during `init()`. |
+| `collections` | Collections that `drop()` always covers, without opening them at `init()`. See below. |
+| `encryption` | An AES key for every box. |
+
+The Hive engine records the name of every collection it opens in a reserved box, `_uld_collections`, so that `drop()` can reach collections the app hasn't opened since it started. Don't use that name for a collection.
+
+Versions before 1.2.0 kept no such record. If your app has shipped with an earlier version, pass its collection names as `collections`, so `drop()` also covers boxes written before the update:
+
+```dart
+UnifiedDataSourceConfig.hive(
+  directory: dir.path,
+  collections: ['auth', 'app_config', 'map_memory'],
+);
+```
+
 ### Initialize with Isar
 
 ```dart
@@ -236,7 +254,11 @@ await db.drop();
 | `drop` | `Future<void> drop({String? collection})` | Deletes a collection from disk, or the whole database when `collection` is omitted |
 | `dispose` | `Future<void> dispose()` | Closes the database and releases all resources |
 
-> **`clear` vs `drop`:** `clear` empties a collection but keeps it available for reuse. `drop` removes the collection itself — on Hive it deletes the box file from disk, on Isar it deletes every entry belonging to that collection. Calling `drop()` with no argument wipes the entire database.
+> **`clear` vs `drop`:** `clear` empties a collection but keeps it available for reuse. `drop` removes the collection itself. Calling `drop()` with no argument wipes the entire database, including collections the app hasn't opened since it started.
+>
+> - **Hive, native:** `drop` deletes the box files.
+> - **Hive, web:** `drop` empties each box but keeps its IndexedDB database. Deleting the database would wait until every other connection to it closed, and a connection held by another tab of the app never does. Another open tab still reads the old values from its in-memory copy until it reloads.
+> - **Isar:** `drop` deletes every entry of the collection, or clears the whole database.
 
 ---
 

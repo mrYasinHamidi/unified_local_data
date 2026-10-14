@@ -1,3 +1,30 @@
+## 1.2.0
+
+### Fixes
+
+* Hive: `drop()` now covers every collection the data source has opened, not just the ones open in the current run. Before, a box written in an earlier run and not opened since survived a `drop()`. The engine records collection names in a reserved box, `_uld_collections`.
+* Hive on the web: `drop()` and `drop(collection:)` empty the boxes instead of deleting their IndexedDB databases. A delete waited for every other connection to close, so with a second tab open it never finished, and the app's next start hung behind it.
+* Isar: fixed `Isar.open` failing on every native platform with `Collection id is invalid`. 1.1.2 rounded the schema ids so web builds compile, but Isar checks each id against the hash of its name. The ids are now constant expressions that are exact on native and still compile for the web.
+* Isar: the generated schema is regenerated for Isar 3.4.1, and Isar is pinned to that exact version. The schema asserts its Isar version, so with 1.1.2 any app that resolved Isar 3.4.x failed to compile in debug mode, even if it only used Hive.
+* Exception messages name the key and the collection. They used to read literally `key=$key in $collection`.
+* `toString()` of an exception is plain text, without ANSI colour codes.
+* Every operation of both engines throws only `LocalDataSourceException` subtypes: `DataSourceReadException` for reads, `DataSourceWriteException` for writes, deletes and `drop`, with the engine's error as `cause`. Watch streams emit their errors the same way. Several operations used to let the engine's own error through.
+* `drop()` on either engine throws `DataSourceNotInitializedException` before `init()`.
+
+### Additions
+
+* `HiveDataSourceConfig.collections` (also on `UnifiedDataSourceConfig.hive`): collections that `drop()` always covers. Use it for boxes written by an earlier version, which the registry has never seen.
+
+### Dependencies
+
+* Requires Dart 3.4 and Flutter 3.22, which hive_ce 2.21 already needed.
+* hive_ce ^2.21.0; isar_community and isar_community_flutter_libs 3.4.1, exactly.
+* Removed `hive_ce_flutter` and `meta`, which nothing imported. `path_provider` is now a dev dependency; only the example uses it.
+
+### Documentation
+
+* Lists and maps read back differently on Hive and Isar. The README now says to read lists as `List<dynamic>` and to store maps with `putObject` / `getObject`.
+
 ## 1.1.2
 
 * Fixed a Flutter Web build failure (`The integer literal ... can't be represented exactly in JavaScript`) in the generated `IsarKvEntry` schema by rounding its schema/index ids to exactly-representable values. Any app depending on this package failed `flutter build web` before this fix, even if it never used the Isar engine.
