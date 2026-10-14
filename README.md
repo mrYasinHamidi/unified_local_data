@@ -203,7 +203,12 @@ All methods are available on the `LocalDataSource` interface returned by `LocalD
 
 ### Primitives
 
-Store and retrieve simple Dart types (`String`, `int`, `double`, `bool`, `List`, `Map`).
+Store and retrieve simple Dart types: `String`, `int`, `double`, `bool`, and lists of them.
+
+> **Lists and maps read back differently on each engine.** Isar round-trips values through JSON, so a list comes back as `List<dynamic>`. Hive keeps typed lists, but a map comes back as `Map<dynamic, dynamic>` once the app restarts. To read the same way on both:
+>
+> - Read lists as `List<dynamic>` and cast them: `(await db.get<List<dynamic>>('c', 'k'))?.cast<String>()`.
+> - Store maps with `putObject` / `getObject` (see [Complex Objects](#complex-objects-generic-path)), not `put` / `get`. `get<Map<String, dynamic>>` throws a `DataSourceReadException` on Hive after a restart.
 
 ```dart
 await db.put<String>('settings', 'theme', 'dark');
@@ -886,6 +891,14 @@ try {
 | `DataSourceWriteException` | A write operation fails (disk full, permission, etc.) |
 | `DataNotFoundException` | Explicitly requested data does not exist |
 | `UnsupportedOperationException` | Operation not available on current engine |
+
+Every operation on the data source reports its failures this way, on both engines:
+
+- Reads throw `DataSourceReadException`; writes, deletes, `clear` and `drop` throw `DataSourceWriteException`. The engine's own error is in `cause`, and the original stack trace is kept.
+- The message names the key and the collection, for example `Failed to get key "camera" from "map_memory"`.
+- Watch streams (`watch`, `watchObject`, `watchAll`, `watchAllObjects`) emit their errors as `DataSourceReadException` instead of throwing them.
+- `transaction` passes on whatever its action throws, unchanged.
+- The native path (`NativeCollectionAccessor`, `openTypedBox`'s box, Isar's `rawInstance`) is the engine itself and throws the engine's errors.
 
 ---
 

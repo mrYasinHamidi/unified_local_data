@@ -6,6 +6,7 @@ import 'package:hive_ce/hive_ce.dart' as hive;
 
 import '../../core/data_model.dart';
 import '../../core/exceptions.dart';
+import '../../core/guard.dart';
 import '../../core/unified_data_source.dart';
 import '../../core/native_collection_accessor.dart';
 import '../../core/query_builder.dart';
@@ -30,23 +31,28 @@ final class HiveDataSource implements UnifiedDataSource {
   @override
   Future<void> init() async {
     if (_initialized) return;
-    hive.Hive.init(config.directory);
-    _registry = await _openHiveBox<dynamic>(registryBoxName);
+    await guardRead('Failed to open the database in "${config.directory}"',
+        () async {
+      hive.Hive.init(config.directory);
+      _registry = await _openHiveBox<dynamic>(registryBoxName);
 
-    for (final boxName in config.preloadBoxes) {
-      await _openBox(boxName);
-    }
+      for (final boxName in config.preloadBoxes) {
+        await _openBox(boxName);
+      }
+    });
 
     _initialized = true;
   }
 
   @override
   Future<void> dispose() async {
-    for (final box in _boxCache.values) {
-      if (box.isOpen) await box.close();
-    }
-    final registry = _registry;
-    if (registry != null && registry.isOpen) await registry.close();
+    await guardWrite('Failed to close the database', () async {
+      for (final box in _boxCache.values) {
+        if (box.isOpen) await box.close();
+      }
+      final registry = _registry;
+      if (registry != null && registry.isOpen) await registry.close();
+    });
     _registry = null;
     _boxCache.clear();
     _nativeAccessors.clear();
@@ -74,10 +80,12 @@ final class HiveDataSource implements UnifiedDataSource {
 
   Future<hive.Box<T>> openTypedBox<T>(String name) async {
     _ensureInitialized();
-    final box = await _openHiveBox<T>(name);
-    _boxCache[name] = box;
-    await _record(name);
-    return box;
+    return guardRead('Failed to open box "$name"', () async {
+      final box = await _openHiveBox<T>(name);
+      _boxCache[name] = box;
+      await _record(name);
+      return box;
+    });
   }
 
   /// Adds [name] to the registry. Hive lower-cases box names, so the
@@ -97,79 +105,96 @@ final class HiveDataSource implements UnifiedDataSource {
     if (!_initialized) throw const DataSourceNotInitializedException();
   }
 
+  T? _decodeObject<T>(dynamic raw, DataModelAdapter<T> adapter) {
+    if (raw == null) return null;
+    final json = jsonDecode(raw as String) as JsonMap;
+    return adapter.fromJson(json);
+  }
+
   @override
   Future<void> put<T>(String collection, String key, T value) async {
     _ensureInitialized();
-    try {
+    await guardWrite('Failed to put key "$key" in "$collection"', () async {
       final box = await _openBox(collection);
       await box.put(key, value);
-    } catch (e) {
-      throw DataSourceWriteException(
-          'Failed to put key=\$key in \$collection', e);
-    }
+    });
   }
 
   @override
   Future<T?> get<T>(String collection, String key) async {
     _ensureInitialized();
-    try {
+    return guardRead('Failed to get key "$key" from "$collection"', () async {
       final box = await _openBox(collection);
       final value = box.get(key);
       if (value == null) return null;
       return value as T;
-    } catch (e) {
-      throw DataSourceReadException(
-          'Failed to get key=\$key from \$collection', e);
-    }
+    });
   }
 
   @override
   Future<void> delete(String collection, String key) async {
     _ensureInitialized();
-    final box = await _openBox(collection);
-    await box.delete(key);
+    await guardWrite('Failed to delete key "$key" from "$collection"',
+        () async {
+      final box = await _openBox(collection);
+      await box.delete(key);
+    });
   }
 
   @override
   Future<void> deleteAll(String collection, List<String> keys) async {
     _ensureInitialized();
-    final box = await _openBox(collection);
-    await box.deleteAll(keys);
+    await guardWrite('Failed to delete keys $keys from "$collection"',
+        () async {
+      final box = await _openBox(collection);
+      await box.deleteAll(keys);
+    });
   }
 
   @override
   Future<void> clear(String collection) async {
     _ensureInitialized();
-    final box = await _openBox(collection);
-    await box.clear();
+    await guardWrite('Failed to clear "$collection"', () async {
+      final box = await _openBox(collection);
+      await box.clear();
+    });
   }
 
   @override
   Future<List<T>> getAll<T>(String collection) async {
     _ensureInitialized();
-    final box = await _openBox(collection);
-    return box.values.cast<T>().toList();
+    return guardRead('Failed to get all values from "$collection"', () async {
+      final box = await _openBox(collection);
+      return box.values.cast<T>().toList();
+    });
   }
 
   @override
   Future<List<String>> getAllKeys(String collection) async {
     _ensureInitialized();
-    final box = await _openBox(collection);
-    return box.keys.cast<String>().toList();
+    return guardRead('Failed to get all keys from "$collection"', () async {
+      final box = await _openBox(collection);
+      return box.keys.cast<String>().toList();
+    });
   }
 
   @override
   Future<bool> containsKey(String collection, String key) async {
     _ensureInitialized();
-    final box = await _openBox(collection);
-    return box.containsKey(key);
+    return guardRead('Failed to look up key "$key" in "$collection"',
+        () async {
+      final box = await _openBox(collection);
+      return box.containsKey(key);
+    });
   }
 
   @override
   Future<int> count(String collection) async {
     _ensureInitialized();
-    final box = await _openBox(collection);
-    return box.length;
+    return guardRead('Failed to count "$collection"', () async {
+      final box = await _openBox(collection);
+      return box.length;
+    });
   }
 
   @override
@@ -180,14 +205,12 @@ final class HiveDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    try {
+    await guardWrite('Failed to put object "$key" in "$collection"',
+        () async {
       final box = await _openBox(collection);
       final jsonString = jsonEncode(adapter.toJson(value));
       await box.put(key, jsonString);
-    } catch (e) {
-      throw DataSourceWriteException(
-          'Failed to putObject key=\$key in \$collection', e);
-    }
+    });
   }
 
   @override
@@ -197,16 +220,11 @@ final class HiveDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    try {
+    return guardRead('Failed to get object "$key" from "$collection"',
+        () async {
       final box = await _openBox(collection);
-      final raw = box.get(key);
-      if (raw == null) return null;
-      final json = jsonDecode(raw as String) as JsonMap;
-      return adapter.fromJson(json);
-    } catch (e) {
-      throw DataSourceReadException(
-          'Failed to getObject key=\$key from \$collection', e);
-    }
+      return _decodeObject(box.get(key), adapter);
+    });
   }
 
   @override
@@ -215,11 +233,11 @@ final class HiveDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    final box = await _openBox(collection);
-    return box.values.map((raw) {
-      final json = jsonDecode(raw as String) as JsonMap;
-      return adapter.fromJson(json);
-    }).toList();
+    return guardRead('Failed to get all objects from "$collection"',
+        () async {
+      final box = await _openBox(collection);
+      return box.values.map((raw) => _decodeObject(raw, adapter) as T).toList();
+    });
   }
 
   @override
@@ -228,8 +246,11 @@ final class HiveDataSource implements UnifiedDataSource {
     Map<String, T> entries,
   ) async {
     _ensureInitialized();
-    final box = await _openBox(collection);
-    await box.putAll(entries);
+    await guardWrite('Failed to put ${entries.length} values in "$collection"',
+        () async {
+      final box = await _openBox(collection);
+      await box.putAll(entries);
+    });
   }
 
   @override
@@ -239,19 +260,25 @@ final class HiveDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    final box = await _openBox(collection);
-    final serialized = entries.map(
-      (key, value) => MapEntry(key, jsonEncode(adapter.toJson(value))),
-    );
-    await box.putAll(serialized);
+    await guardWrite(
+        'Failed to put ${entries.length} objects in "$collection"', () async {
+      final box = await _openBox(collection);
+      final serialized = entries.map(
+        (key, value) => MapEntry(key, jsonEncode(adapter.toJson(value))),
+      );
+      await box.putAll(serialized);
+    });
   }
 
   @override
-  Stream<T?> watch<T>(String collection, String key) async* {
-    _ensureInitialized();
-    final box = await _openBox(collection);
-    yield box.get(key) as T?;
-    yield* box.watch(key: key).map((event) => event.value as T?);
+  Stream<T?> watch<T>(String collection, String key) {
+    return guardStream('Failed to watch key "$key" in "$collection"',
+        () async* {
+      _ensureInitialized();
+      final box = await _openBox(collection);
+      yield box.get(key) as T?;
+      yield* box.watch(key: key).map((event) => event.value as T?);
+    });
   }
 
   @override
@@ -259,42 +286,41 @@ final class HiveDataSource implements UnifiedDataSource {
     String collection,
     String key,
     DataModelAdapter<T> adapter,
-  ) async* {
-    _ensureInitialized();
-    final box = await _openBox(collection);
-
-    T? decode(dynamic raw) {
-      if (raw == null) return null;
-
-      final json = jsonDecode(raw as String) as JsonMap;
-      return adapter.fromJson(json);
-    }
-
-    yield decode(box.get(key));
-    yield* box.watch(key: key).map((raw) => decode(raw.value));
+  ) {
+    return guardStream('Failed to watch object "$key" in "$collection"',
+        () async* {
+      _ensureInitialized();
+      final box = await _openBox(collection);
+      yield _decodeObject(box.get(key), adapter);
+      yield* box
+          .watch(key: key)
+          .map((event) => _decodeObject(event.value, adapter));
+    });
   }
 
   @override
-  Stream<List<T>> watchAll<T>(String collection) async* {
-    _ensureInitialized();
-    final box = await _openBox(collection);
-    yield box.values.cast<T>().toList();
-    yield* box.watch().map((_) => box.values.cast<T>().toList());
+  Stream<List<T>> watchAll<T>(String collection) {
+    return guardStream('Failed to watch "$collection"', () async* {
+      _ensureInitialized();
+      final box = await _openBox(collection);
+      yield box.values.cast<T>().toList();
+      yield* box.watch().map((_) => box.values.cast<T>().toList());
+    });
   }
 
   @override
   Stream<List<T>> watchAllObjects<T>(
     String collection,
     DataModelAdapter<T> adapter,
-  ) async* {
-    _ensureInitialized();
-    final box = await _openBox(collection);
-    List<T> decode() => box.values.map((raw) {
-          final json = jsonDecode(raw as String) as JsonMap;
-          return adapter.fromJson(json);
-        }).toList();
-    yield decode();
-    yield* box.watch().map((_) => decode());
+  ) {
+    return guardStream('Failed to watch objects in "$collection"', () async* {
+      _ensureInitialized();
+      final box = await _openBox(collection);
+      List<T> decode() =>
+          box.values.map((raw) => _decodeObject(raw, adapter) as T).toList();
+      yield decode();
+      yield* box.watch().map((_) => decode());
+    });
   }
 
   @override
@@ -309,6 +335,8 @@ final class HiveDataSource implements UnifiedDataSource {
     );
   }
 
+  /// Runs [action]. Hive has no transactions, so this only checks init, and
+  /// whatever [action] throws reaches the caller unchanged.
   @override
   Future<void> transaction(Future<void> Function() action) async {
     _ensureInitialized();
@@ -323,9 +351,9 @@ final class HiveDataSource implements UnifiedDataSource {
 
     final box = _boxCache[collection];
     if (box == null || box is! hive.Box<T>) {
-      throw const UnsupportedOperationException(
-        'No typed Box<\$T> found for "\$collection". '
-        'Open the box with openTypedBox<\$T>() first.',
+      throw UnsupportedOperationException(
+        'No typed Box<$T> found for "$collection". '
+        'Open the box with openTypedBox<$T>() first.',
       );
     }
 
@@ -337,39 +365,44 @@ final class HiveDataSource implements UnifiedDataSource {
   @override
   Future<void> drop({String? collection}) async {
     _ensureInitialized();
-    final registry = _registry!;
-    final names = collection != null
-        ? {collection.toLowerCase()}
-        : {
-            ...registry.keys.cast<String>(),
-            ..._boxCache.keys,
-            ...config.collections,
-            ...config.preloadBoxes,
-          }.map((name) => name.toLowerCase()).toSet();
-    names.remove(registryBoxName);
+    await guardWrite(
+        collection != null
+            ? 'Failed to drop "$collection"'
+            : 'Failed to drop the database', () async {
+      final registry = _registry!;
+      final names = collection != null
+          ? {collection.toLowerCase()}
+          : {
+              ...registry.keys.cast<String>(),
+              ..._boxCache.keys,
+              ...config.collections,
+              ...config.preloadBoxes,
+            }.map((name) => name.toLowerCase()).toSet();
+      names.remove(registryBoxName);
 
-    for (final name in names) {
-      if (kIsWeb) {
-        // Each box is its own IndexedDB database, and deleting one waits
-        // until every other connection to it closes, which a connection from
-        // another tab may never do. A clear is an ordinary write, and open
-        // watch streams see it.
-        final box = await _openHiveBox<dynamic>(name);
-        await box.clear();
-      } else {
-        // Deletes an open box through the box, and an unopened one through
-        // its files.
-        await hive.Hive.deleteBoxFromDisk(name);
+      for (final name in names) {
+        if (kIsWeb) {
+          // Each box is its own IndexedDB database, and deleting one waits
+          // until every other connection to it closes, which a connection
+          // from another tab may never do. A clear is an ordinary write, and
+          // open watch streams see it.
+          final box = await _openHiveBox<dynamic>(name);
+          await box.clear();
+        } else {
+          // Deletes an open box through the box, and an unopened one through
+          // its files.
+          await hive.Hive.deleteBoxFromDisk(name);
+        }
       }
-    }
 
-    _boxCache.removeWhere((name, _) => names.contains(name.toLowerCase()));
-    _nativeAccessors
-        .removeWhere((name, _) => names.contains(name.toLowerCase()));
-    if (collection != null) {
-      await registry.delete(collection.toLowerCase());
-    } else {
-      await registry.clear();
-    }
+      _boxCache.removeWhere((name, _) => names.contains(name.toLowerCase()));
+      _nativeAccessors
+          .removeWhere((name, _) => names.contains(name.toLowerCase()));
+      if (collection != null) {
+        await registry.delete(collection.toLowerCase());
+      } else {
+        await registry.clear();
+      }
+    });
   }
 }

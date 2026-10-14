@@ -6,7 +6,7 @@ sealed class LocalDataSourceException implements Exception {
 
   @override
   String toString() =>
-      '[32m$runtimeType: $message${cause != null ? ' ($cause)' : ''}[0m';
+      '$runtimeType: $message${cause != null ? ' ($cause)' : ''}';
 }
 
 final class DataSourceNotInitializedException extends LocalDataSourceException {

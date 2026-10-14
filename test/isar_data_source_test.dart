@@ -9,6 +9,8 @@ import 'package:isar_community/isar.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unified_local_data/unified_local_data.dart';
 
+import 'support/operations.dart';
+
 /// Finds the host's Isar library inside the resolved
 /// `isar_community_flutter_libs` package, so nothing is downloaded.
 String? isarLibraryPath() {
@@ -61,6 +63,50 @@ void main() {
   tearDown(() async {
     await UnifiedDataSourceFactory.reset();
     await dir.delete(recursive: true);
+  });
+
+  group('maps and lists', () {
+    test('a map reads back as Map<String, dynamic>', () async {
+      final db = await start();
+      await db.put<Map<String, dynamic>>('maps', 'm', {'a': 1});
+
+      expect(await db.get<Map<String, dynamic>>('maps', 'm'), {'a': 1});
+    });
+
+    test('a list of strings reads back as List<dynamic>', () async {
+      final db = await start();
+      await db.put<List<String>>('lists', 'l', ['a', 'b']);
+
+      expect(await db.get<List<dynamic>>('lists', 'l'), ['a', 'b']);
+      await expectLater(
+        db.get<List<String>>('lists', 'l'),
+        throwsA(isA<DataSourceReadException>()),
+      );
+    });
+  });
+
+  group('every operation reports failures as LocalDataSourceException', () {
+    // Closing the Isar instance underneath the data source makes every
+    // operation fail inside Isar.
+    defineFailureTests(() async {
+      final db = await start();
+      await (db as IsarDataSource).rawInstance.close();
+      return db;
+    }, 'c');
+
+    test('drop throws DataSourceWriteException', () async {
+      final db = await start();
+      await (db as IsarDataSource).rawInstance.close();
+
+      await expectLater(db.drop(), throwsA(isA<DataSourceWriteException>()));
+    });
+
+    test('drop throws before init()', () {
+      final db = IsarDataSource(
+        config: IsarDataSourceConfig(directory: dir.path, schemas: []),
+      );
+      expect(db.drop(), throwsA(isA<DataSourceNotInitializedException>()));
+    });
   });
 
   group('errors', () {

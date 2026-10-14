@@ -7,6 +7,8 @@ import 'package:hive_ce/hive_ce.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unified_local_data/unified_local_data.dart';
 
+import 'support/operations.dart';
+
 void main() {
   late Directory dir;
 
@@ -178,6 +180,58 @@ void main() {
         config: HiveDataSourceConfig(directory: dir.path),
       );
       expect(db.drop(), throwsA(isA<DataSourceNotInitializedException>()));
+    });
+  });
+
+  group('maps and lists after a restart', () {
+    test('a map reads back as Map<dynamic, dynamic>', () async {
+      var db = await start();
+      await db.put<Map<String, dynamic>>('maps', 'm', {'a': 1});
+      // Same run: Hive hands back the object it holds in memory.
+      expect(await db.get<Map<String, dynamic>>('maps', 'm'), {'a': 1});
+
+      db = await restart();
+      expect(await db.get<Map<dynamic, dynamic>>('maps', 'm'), {'a': 1});
+      await expectLater(
+        db.get<Map<String, dynamic>>('maps', 'm'),
+        throwsA(isA<DataSourceReadException>()),
+      );
+    });
+
+    test('a list of strings reads back as List<String>', () async {
+      var db = await start();
+      await db.put<List<String>>('lists', 'l', ['a', 'b']);
+
+      db = await restart();
+      expect(await db.get<List<String>>('lists', 'l'), ['a', 'b']);
+      expect(await db.get<List<dynamic>>('lists', 'l'), ['a', 'b']);
+    });
+
+    test('an object round-trips through putObject and getObject', () async {
+      final adapter = DataModelAdapter<Map<String, dynamic>>(
+        fromJson: (json) => json,
+        toJson: (map) => map,
+      );
+      var db = await start();
+      await db.putObject('maps', 'o', {'a': 1}, adapter);
+
+      db = await restart();
+      expect(await db.getObject('maps', 'o', adapter), {'a': 1});
+    });
+  });
+
+  group('every operation reports failures as LocalDataSourceException', () {
+    // Hive asserts that box names are at most 255 characters, so every
+    // operation on this collection fails when it opens the box.
+    defineFailureTests(start, 'x' * 256);
+
+    test('drop throws DataSourceWriteException', () async {
+      final db = await start();
+      // The registry only ever holds collection names, so drop() can't
+      // read an int key.
+      await Hive.box<dynamic>(HiveDataSource.registryBoxName).put(1, true);
+
+      await expectLater(db.drop(), throwsA(isA<DataSourceWriteException>()));
     });
   });
 

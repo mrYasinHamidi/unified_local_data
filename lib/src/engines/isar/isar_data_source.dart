@@ -5,6 +5,7 @@ import 'package:isar_community/isar.dart';
 
 import '../../core/data_model.dart';
 import '../../core/exceptions.dart';
+import '../../core/guard.dart';
 import '../../core/unified_data_source.dart';
 import '../../core/native_collection_accessor.dart';
 import '../../core/query_builder.dart' as core;
@@ -41,11 +42,14 @@ final class IsarDataSource implements UnifiedDataSource {
       ...config.schemas.cast<CollectionSchema<dynamic>>(),
     ];
 
-    _isar = await Isar.open(
-      schemas,
-      directory: config.directory,
-      maxSizeMiB: config.maxSizeMiB,
-      inspector: config.inspector,
+    _isar = await guardRead(
+      'Failed to open the database in "${config.directory}"',
+      () => Isar.open(
+        schemas,
+        directory: config.directory,
+        maxSizeMiB: config.maxSizeMiB,
+        inspector: config.inspector,
+      ),
     );
 
     _initialized = true;
@@ -55,7 +59,7 @@ final class IsarDataSource implements UnifiedDataSource {
   Future<void> dispose() async {
     final db = _isar;
     if (db != null && db.isOpen) {
-      await db.close();
+      await guardWrite('Failed to close the database', db.close);
     }
     _isar = null;
     _nativeAccessors.clear();
@@ -88,10 +92,19 @@ final class IsarDataSource implements UnifiedDataSource {
         .findAll();
   }
 
+  Future<List<IsarKvEntry>> _entriesOf(String collection) =>
+      _kvCollection.filter().collectionEqualTo(collection).findAll();
+
+  T _decodeObject<T>(String value, DataModelAdapter<T> adapter) {
+    final outerJson = jsonDecode(value) as String;
+    final json = jsonDecode(outerJson) as JsonMap;
+    return adapter.fromJson(json);
+  }
+
   @override
   Future<void> put<T>(String collection, String key, T value) async {
     _ensureInitialized();
-    try {
+    await guardWrite('Failed to put key "$key" in "$collection"', () async {
       final composite = _compositeKey(collection, key);
       final entry = IsarKvEntry()
         ..compositeKey = composite
@@ -109,79 +122,86 @@ final class IsarDataSource implements UnifiedDataSource {
         }
         await _kvCollection.put(entry);
       });
-    } catch (e) {
-      throw DataSourceWriteException(
-          'Failed to put key=\$key in \$collection', e);
-    }
+    });
   }
 
   @override
   Future<T?> get<T>(String collection, String key) async {
     _ensureInitialized();
-    try {
+    return guardRead('Failed to get key "$key" from "$collection"', () async {
       final entry = await _findEntry(collection, key);
       if (entry == null) return null;
       return jsonDecode(entry.value) as T;
-    } catch (e) {
-      throw DataSourceReadException(
-          'Failed to get key=\$key from \$collection', e);
-    }
+    });
   }
 
   @override
   Future<void> delete(String collection, String key) async {
     _ensureInitialized();
-    final entry = await _findEntry(collection, key);
-    if (entry == null) return;
-    await _db.writeTxn(() => _kvCollection.delete(entry.id));
+    await guardWrite('Failed to delete key "$key" from "$collection"',
+        () async {
+      final entry = await _findEntry(collection, key);
+      if (entry == null) return;
+      await _db.writeTxn(() => _kvCollection.delete(entry.id));
+    });
   }
 
   @override
   Future<void> deleteAll(String collection, List<String> keys) async {
     _ensureInitialized();
     if (keys.isEmpty) return;
-    final entries = await _findEntries(collection, keys);
-    if (entries.isEmpty) return;
-    final ids = entries.map((e) => e.id).toList();
-    await _db.writeTxn(() => _kvCollection.deleteAll(ids));
+    await guardWrite('Failed to delete keys $keys from "$collection"',
+        () async {
+      final entries = await _findEntries(collection, keys);
+      if (entries.isEmpty) return;
+      final ids = entries.map((e) => e.id).toList();
+      await _db.writeTxn(() => _kvCollection.deleteAll(ids));
+    });
   }
 
   @override
   Future<void> clear(String collection) async {
     _ensureInitialized();
-    final entries =
-        await _kvCollection.filter().collectionEqualTo(collection).findAll();
-    final ids = entries.map((e) => e.id).toList();
-    await _db.writeTxn(() => _kvCollection.deleteAll(ids));
+    await guardWrite('Failed to clear "$collection"', () async {
+      final entries = await _entriesOf(collection);
+      final ids = entries.map((e) => e.id).toList();
+      await _db.writeTxn(() => _kvCollection.deleteAll(ids));
+    });
   }
 
   @override
   Future<List<T>> getAll<T>(String collection) async {
     _ensureInitialized();
-    final entries =
-        await _kvCollection.filter().collectionEqualTo(collection).findAll();
-    return entries.map((e) => jsonDecode(e.value) as T).toList();
+    return guardRead('Failed to get all values from "$collection"', () async {
+      final entries = await _entriesOf(collection);
+      return entries.map((e) => jsonDecode(e.value) as T).toList();
+    });
   }
 
   @override
   Future<List<String>> getAllKeys(String collection) async {
     _ensureInitialized();
-    final entries =
-        await _kvCollection.filter().collectionEqualTo(collection).findAll();
-    return entries.map((e) => e.key).toList();
+    return guardRead('Failed to get all keys from "$collection"', () async {
+      final entries = await _entriesOf(collection);
+      return entries.map((e) => e.key).toList();
+    });
   }
 
   @override
   Future<bool> containsKey(String collection, String key) async {
     _ensureInitialized();
-    final entry = await _findEntry(collection, key);
-    return entry != null;
+    return guardRead('Failed to look up key "$key" in "$collection"',
+        () async {
+      final entry = await _findEntry(collection, key);
+      return entry != null;
+    });
   }
 
   @override
   Future<int> count(String collection) async {
     _ensureInitialized();
-    return _kvCollection.filter().collectionEqualTo(collection).count();
+    return guardRead('Failed to count "$collection"',
+        () => _kvCollection.filter().collectionEqualTo(collection).count());
   }
 
   @override
@@ -192,13 +212,11 @@ final class IsarDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    try {
+    await guardWrite('Failed to put object "$key" in "$collection"',
+        () async {
       final jsonString = jsonEncode(adapter.toJson(value));
       await put<String>(collection, key, jsonString);
-    } catch (e) {
-      throw DataSourceWriteException(
-          'Failed to putObject key=\$key in \$collection', e);
-    }
+    });
   }
 
   @override
@@ -208,15 +226,13 @@ final class IsarDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    try {
+    return guardRead('Failed to get object "$key" from "$collection"',
+        () async {
       final raw = await get<String>(collection, key);
       if (raw == null) return null;
       final json = jsonDecode(raw) as JsonMap;
       return adapter.fromJson(json);
-    } catch (e) {
-      throw DataSourceReadException(
-          'Failed to getObject key=\$key from \$collection', e);
-    }
+    });
   }
 
   @override
@@ -225,13 +241,11 @@ final class IsarDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    final entries =
-        await _kvCollection.filter().collectionEqualTo(collection).findAll();
-    return entries.map((e) {
-      final outerJson = jsonDecode(e.value) as String;
-      final json = jsonDecode(outerJson) as JsonMap;
-      return adapter.fromJson(json);
-    }).toList();
+    return guardRead('Failed to get all objects from "$collection"',
+        () async {
+      final entries = await _entriesOf(collection);
+      return entries.map((e) => _decodeObject(e.value, adapter)).toList();
+    });
   }
 
   @override
@@ -240,25 +254,28 @@ final class IsarDataSource implements UnifiedDataSource {
     Map<String, T> entries,
   ) async {
     _ensureInitialized();
-    await _db.writeTxn(() async {
-      for (final entry in entries.entries) {
-        final composite = _compositeKey(collection, entry.key);
-        final existing = await _kvCollection
-            .filter()
-            .compositeKeyEqualTo(composite)
-            .findFirst();
+    await guardWrite('Failed to put ${entries.length} values in "$collection"',
+        () async {
+      await _db.writeTxn(() async {
+        for (final entry in entries.entries) {
+          final composite = _compositeKey(collection, entry.key);
+          final existing = await _kvCollection
+              .filter()
+              .compositeKeyEqualTo(composite)
+              .findFirst();
 
-        final kvEntry = IsarKvEntry()
-          ..compositeKey = composite
-          ..collection = collection
-          ..key = entry.key
-          ..value = jsonEncode(entry.value);
+          final kvEntry = IsarKvEntry()
+            ..compositeKey = composite
+            ..collection = collection
+            ..key = entry.key
+            ..value = jsonEncode(entry.value);
 
-        if (existing != null) {
-          kvEntry.id = existing.id;
+          if (existing != null) {
+            kvEntry.id = existing.id;
+          }
+          await _kvCollection.put(kvEntry);
         }
-        await _kvCollection.put(kvEntry);
-      }
+      });
     });
   }
 
@@ -269,23 +286,29 @@ final class IsarDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    final mapped = entries.map(
-      (key, value) => MapEntry(key, jsonEncode(adapter.toJson(value))),
-    );
-    await putAll<String>(collection, mapped);
+    await guardWrite(
+        'Failed to put ${entries.length} objects in "$collection"', () async {
+      final mapped = entries.map(
+        (key, value) => MapEntry(key, jsonEncode(adapter.toJson(value))),
+      );
+      await putAll<String>(collection, mapped);
+    });
   }
 
   @override
   Stream<T?> watch<T>(String collection, String key) {
     _ensureInitialized();
-    return _kvCollection
-        .filter()
-        .compositeKeyEqualTo(_compositeKey(collection, key))
-        .watch(fireImmediately: true)
-        .map((entries) {
-      if (entries.isEmpty) return null;
-      return jsonDecode(entries.first.value) as T;
-    });
+    return guardStream(
+      'Failed to watch key "$key" in "$collection"',
+      () => _kvCollection
+          .filter()
+          .compositeKeyEqualTo(_compositeKey(collection, key))
+          .watch(fireImmediately: true)
+          .map((entries) {
+        if (entries.isEmpty) return null;
+        return jsonDecode(entries.first.value) as T;
+      }),
+    );
   }
 
   @override
@@ -295,27 +318,31 @@ final class IsarDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) {
     _ensureInitialized();
-    return _kvCollection
-        .filter()
-        .compositeKeyEqualTo(_compositeKey(collection, key))
-        .watch(fireImmediately: true)
-        .map((entries) {
-      if (entries.isEmpty) return null;
-      final outerJson = jsonDecode(entries.first.value) as String;
-      final json = jsonDecode(outerJson) as JsonMap;
-      return adapter.fromJson(json);
-    });
+    return guardStream(
+      'Failed to watch object "$key" in "$collection"',
+      () => _kvCollection
+          .filter()
+          .compositeKeyEqualTo(_compositeKey(collection, key))
+          .watch(fireImmediately: true)
+          .map((entries) {
+        if (entries.isEmpty) return null;
+        return _decodeObject(entries.first.value, adapter);
+      }),
+    );
   }
 
   @override
   Stream<List<T>> watchAll<T>(String collection) {
     _ensureInitialized();
-    return _kvCollection
-        .filter()
-        .collectionEqualTo(collection)
-        .watch(fireImmediately: true)
-        .map(
-            (entries) => entries.map((e) => jsonDecode(e.value) as T).toList());
+    return guardStream(
+      'Failed to watch "$collection"',
+      () => _kvCollection
+          .filter()
+          .collectionEqualTo(collection)
+          .watch(fireImmediately: true)
+          .map((entries) =>
+              entries.map((e) => jsonDecode(e.value) as T).toList()),
+    );
   }
 
   @override
@@ -324,15 +351,15 @@ final class IsarDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) {
     _ensureInitialized();
-    return _kvCollection
-        .filter()
-        .collectionEqualTo(collection)
-        .watch(fireImmediately: true)
-        .map((entries) => entries.map((e) {
-              final outerJson = jsonDecode(e.value) as String;
-              final json = jsonDecode(outerJson) as JsonMap;
-              return adapter.fromJson(json);
-            }).toList());
+    return guardStream(
+      'Failed to watch objects in "$collection"',
+      () => _kvCollection
+          .filter()
+          .collectionEqualTo(collection)
+          .watch(fireImmediately: true)
+          .map((entries) =>
+              entries.map((e) => _decodeObject(e.value, adapter)).toList()),
+    );
   }
 
   @override
@@ -347,6 +374,8 @@ final class IsarDataSource implements UnifiedDataSource {
     );
   }
 
+  /// Runs [action] in an Isar write transaction. Whatever [action] throws
+  /// reaches the caller unchanged.
   @override
   Future<void> transaction(Future<void> Function() action) async {
     _ensureInitialized();
@@ -359,7 +388,15 @@ final class IsarDataSource implements UnifiedDataSource {
     final cached = _nativeAccessors[collection];
     if (cached != null) return cached as NativeCollectionAccessor<T>;
 
-    final isarCollection = _db.collection<T>();
+    final IsarCollection<T> isarCollection;
+    try {
+      isarCollection = _db.collection<T>();
+    } catch (e) {
+      throw UnsupportedOperationException(
+        'No Isar collection for $T. '
+        'Pass its schema in IsarDataSourceConfig.schemas. ($e)',
+      );
+    }
     final accessor = IsarNativeAccessor<T>(_db, isarCollection);
     _nativeAccessors[collection] = accessor;
     return accessor;
@@ -368,14 +405,18 @@ final class IsarDataSource implements UnifiedDataSource {
   @override
   Future<void> drop({String? collection}) async {
     _ensureInitialized();
-    if (collection != null) {
-      final entries =
-          await _kvCollection.filter().collectionEqualTo(collection).findAll();
-      if (entries.isEmpty) return;
-      final ids = entries.map((e) => e.id).toList();
-      await _db.writeTxn(() => _kvCollection.deleteAll(ids));
-    } else {
-      await _db.clear();
-    }
+    await guardWrite(
+        collection != null
+            ? 'Failed to drop "$collection"'
+            : 'Failed to drop the database', () async {
+      if (collection != null) {
+        final entries = await _entriesOf(collection);
+        if (entries.isEmpty) return;
+        final ids = entries.map((e) => e.id).toList();
+        await _db.writeTxn(() => _kvCollection.deleteAll(ids));
+      } else {
+        await _db.clear();
+      }
+    });
   }
 }
