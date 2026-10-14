@@ -1,7 +1,7 @@
 name: unified_local_data
 description: A universal, engine-agnostic local database abstraction layer for Flutter.
 version: 1.2.1
-repository: https://github.com/mrYasinHamidi/unified_local_data
+repository: https://github.com/mrYasinHamidi/unified_local_data/tree/main/packages/unified_local_data
 issue_tracker: https://github.com/mrYasinHamidi/unified_local_data/issues
 
 environment:
