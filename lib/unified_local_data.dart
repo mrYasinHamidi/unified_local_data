@@ -1,4 +1,4 @@
-library unified_local_data;
+library;
 
 export 'src/core/unified_data_source.dart';
 export 'src/core/unified_data_source_config.dart';

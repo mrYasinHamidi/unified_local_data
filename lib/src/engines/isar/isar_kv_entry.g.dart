@@ -7,7 +7,7 @@ part of 'isar_kv_entry.dart';
 // **************************************************************************
 
 // coverage:ignore-file
-// ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters, always_specify_types
+// ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters, always_specify_types, experimental_member_use
 
 extension GetIsarKvEntryCollection on Isar {
   IsarCollection<IsarKvEntry> get isarKvEntrys => this.collection();
@@ -15,11 +15,12 @@ extension GetIsarKvEntryCollection on Isar {
 
 const IsarKvEntrySchema = CollectionSchema(
   name: r'IsarKvEntry',
-  // Rounded to the nearest exactly-representable double (dart2js/dartdevc
-  // reject literals that would lose precision as a JS number) so
-  // `flutter build web` doesn't fail; only needs to be a stable, unique
-  // schema id, not the exact fastHash() output.
-  id: 660830258448412800,
+  // dart2js and dartdevc reject integer literals that a JS number can't hold,
+  // so the ids are written as constant expressions. The VM computes the exact
+  // value, which Isar's core checks against the hash of the name. On the web
+  // the result is rounded, which is harmless because Isar doesn't run there.
+  // Reapply this after regenerating.
+  id: 660830258448412 * 1000 + 841,
   properties: {
     r'collection': PropertySchema(
       id: 0,
@@ -49,8 +50,7 @@ const IsarKvEntrySchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'compositeKey': IndexSchema(
-      // Rounded to the nearest exactly-representable double; see note on the schema id above.
-      id: -66619599277560112,
+      id: -(66619599277560 * 1000 + 115),
       name: r'compositeKey',
       unique: true,
       replace: true,
@@ -63,8 +63,7 @@ const IsarKvEntrySchema = CollectionSchema(
       ],
     ),
     r'collection': IndexSchema(
-      // Rounded to the nearest exactly-representable double; see note on the schema id above.
-      id: -1843270535372135168,
+      id: -(1843270535372135 * 1000 + 219),
       name: r'collection',
       unique: false,
       replace: false,
@@ -82,7 +81,7 @@ const IsarKvEntrySchema = CollectionSchema(
   getId: _isarKvEntryGetId,
   getLinks: _isarKvEntryGetLinks,
   attach: _isarKvEntryAttach,
-  version: '3.3.2',
+  version: '3.4.1',
 );
 
 int _isarKvEntryEstimateSize(

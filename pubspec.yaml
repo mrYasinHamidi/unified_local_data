@@ -5,23 +5,24 @@ repository: https://github.com/mrYasinHamidi/unified_local_data
 issue_tracker: https://github.com/mrYasinHamidi/unified_local_data/issues
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
-  flutter: ">=3.0.0"
+  sdk: ^3.4.0
+  flutter: ">=3.22.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  hive_ce: ^2.19.3
-  hive_ce_flutter: ^2.3.4
-  isar_community: ^3.3.0
-  isar_community_flutter_libs: ^3.3.0
-  meta: ^1.17.0
-  path_provider: ^2.1.5
-
+  hive_ce: ^2.21.0
+  # Exact: the generated IsarKvEntry schema asserts that it matches the
+  # Isar version it was generated with.
+  isar_community: 3.4.1
+  isar_community_flutter_libs: 3.4.1
 
 dev_dependencies:
-  flutter_lints: ^3.0.0
-  isar_community_generator: ^3.3.0
-  hive_ce_generator: ^1.9.3
-  build_runner: ^2.7.1
-  test: ^1.24.0
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  isar_community_generator: 3.4.1
+  hive_ce_generator: ^1.11.3
+  build_runner: ^2.16.2
+  path_provider: ^2.1.6
+  web: ^1.1.1
