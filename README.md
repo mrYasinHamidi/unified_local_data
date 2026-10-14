@@ -464,9 +464,11 @@ await db.transaction(() async {
 });
 ```
 
-> **Hive**: Operations are executed sequentially (Hive has no native transaction support).
+> **Hive**: Operations are executed sequentially (Hive has no native transaction support). If one fails, the writes before it stay.
 >
-> **Isar**: Operations are wrapped in a native `writeTxn` for true ACID compliance.
+> **Isar**: The action runs in one native `writeTxn`. Every data source call inside it, and every write through `native<T>()`, joins that transaction, and so does a nested `transaction()`. If the action throws, all of its writes are rolled back. Don't call `rawInstance.writeTxn()` inside it: Isar doesn't nest transactions.
+>
+> On both engines, `transaction` passes on whatever the action throws, unchanged.
 
 ---
 

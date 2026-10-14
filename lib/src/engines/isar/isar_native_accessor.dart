@@ -4,6 +4,7 @@ import 'package:isar_community/isar.dart';
 
 import '../../core/native_collection_accessor.dart';
 import '../../core/query_builder.dart' as core;
+import 'isar_txn.dart';
 
 final class IsarNativeAccessor<T> implements NativeCollectionAccessor<T> {
   final Isar _isar;
@@ -13,12 +14,12 @@ final class IsarNativeAccessor<T> implements NativeCollectionAccessor<T> {
 
   @override
   Future<void> put(T item) async {
-    await _isar.writeTxn(() => _collection.put(item));
+    await writeTxn(_isar, () => _collection.put(item));
   }
 
   @override
   Future<void> putAll(List<T> items) async {
-    await _isar.writeTxn(() => _collection.putAll(items));
+    await writeTxn(_isar, () => _collection.putAll(items));
   }
 
   @override
@@ -33,12 +34,12 @@ final class IsarNativeAccessor<T> implements NativeCollectionAccessor<T> {
 
   @override
   Future<void> deleteById(dynamic id) async {
-    await _isar.writeTxn(() => _collection.delete(id as int));
+    await writeTxn(_isar, () => _collection.delete(id as int));
   }
 
   @override
   Future<void> deleteAll() async {
-    await _isar.writeTxn(() => _collection.clear());
+    await writeTxn(_isar, () => _collection.clear());
   }
 
   @override

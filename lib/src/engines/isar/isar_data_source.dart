@@ -12,6 +12,7 @@ import '../../core/query_builder.dart' as core;
 import '../../core/typedefs.dart';
 import 'isar_config.dart';
 import 'isar_native_accessor.dart';
+import 'isar_txn.dart';
 import 'isar_kv_entry.dart';
 
 final class IsarDataSource implements UnifiedDataSource {
@@ -112,7 +113,7 @@ final class IsarDataSource implements UnifiedDataSource {
         ..key = key
         ..value = jsonEncode(value);
 
-      await _db.writeTxn(() async {
+      await writeTxn(_db, () async {
         final existing = await _kvCollection
             .filter()
             .compositeKeyEqualTo(composite)
@@ -142,7 +143,7 @@ final class IsarDataSource implements UnifiedDataSource {
         () async {
       final entry = await _findEntry(collection, key);
       if (entry == null) return;
-      await _db.writeTxn(() => _kvCollection.delete(entry.id));
+      await writeTxn(_db, () => _kvCollection.delete(entry.id));
     });
   }
 
@@ -155,7 +156,7 @@ final class IsarDataSource implements UnifiedDataSource {
       final entries = await _findEntries(collection, keys);
       if (entries.isEmpty) return;
       final ids = entries.map((e) => e.id).toList();
-      await _db.writeTxn(() => _kvCollection.deleteAll(ids));
+      await writeTxn(_db, () => _kvCollection.deleteAll(ids));
     });
   }
 
@@ -165,7 +166,7 @@ final class IsarDataSource implements UnifiedDataSource {
     await guardWrite('Failed to clear "$collection"', () async {
       final entries = await _entriesOf(collection);
       final ids = entries.map((e) => e.id).toList();
-      await _db.writeTxn(() => _kvCollection.deleteAll(ids));
+      await writeTxn(_db, () => _kvCollection.deleteAll(ids));
     });
   }
 
@@ -190,8 +191,7 @@ final class IsarDataSource implements UnifiedDataSource {
   @override
   Future<bool> containsKey(String collection, String key) async {
     _ensureInitialized();
-    return guardRead('Failed to look up key "$key" in "$collection"',
-        () async {
+    return guardRead('Failed to look up key "$key" in "$collection"', () async {
       final entry = await _findEntry(collection, key);
       return entry != null;
     });
@@ -212,8 +212,7 @@ final class IsarDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    await guardWrite('Failed to put object "$key" in "$collection"',
-        () async {
+    await guardWrite('Failed to put object "$key" in "$collection"', () async {
       final jsonString = jsonEncode(adapter.toJson(value));
       await put<String>(collection, key, jsonString);
     });
@@ -241,8 +240,7 @@ final class IsarDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    return guardRead('Failed to get all objects from "$collection"',
-        () async {
+    return guardRead('Failed to get all objects from "$collection"', () async {
       final entries = await _entriesOf(collection);
       return entries.map((e) => _decodeObject(e.value, adapter)).toList();
     });
@@ -256,7 +254,7 @@ final class IsarDataSource implements UnifiedDataSource {
     _ensureInitialized();
     await guardWrite('Failed to put ${entries.length} values in "$collection"',
         () async {
-      await _db.writeTxn(() async {
+      await writeTxn(_db, () async {
         for (final entry in entries.entries) {
           final composite = _compositeKey(collection, entry.key);
           final existing = await _kvCollection
@@ -286,8 +284,8 @@ final class IsarDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    await guardWrite(
-        'Failed to put ${entries.length} objects in "$collection"', () async {
+    await guardWrite('Failed to put ${entries.length} objects in "$collection"',
+        () async {
       final mapped = entries.map(
         (key, value) => MapEntry(key, jsonEncode(adapter.toJson(value))),
       );
@@ -379,7 +377,7 @@ final class IsarDataSource implements UnifiedDataSource {
   @override
   Future<void> transaction(Future<void> Function() action) async {
     _ensureInitialized();
-    await _db.writeTxn(() => action());
+    await writeTxn(_db, action);
   }
 
   @override
@@ -413,9 +411,9 @@ final class IsarDataSource implements UnifiedDataSource {
         final entries = await _entriesOf(collection);
         if (entries.isEmpty) return;
         final ids = entries.map((e) => e.id).toList();
-        await _db.writeTxn(() => _kvCollection.deleteAll(ids));
+        await writeTxn(_db, () => _kvCollection.deleteAll(ids));
       } else {
-        await _db.clear();
+        await writeTxn(_db, _db.clear);
       }
     });
   }
