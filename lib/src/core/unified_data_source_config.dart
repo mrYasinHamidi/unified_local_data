@@ -15,6 +15,7 @@ abstract class UnifiedDataSourceConfig {
   factory UnifiedDataSourceConfig.hive({
     required String directory,
     List<String> preloadBoxes,
+    List<String> collections,
     HiveEncryptionConfig? encryption,
   }) = HiveDataSourceConfig;
 

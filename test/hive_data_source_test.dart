@@ -94,6 +94,91 @@ void main() {
       await db.drop();
       expect(await db.get<String>('', 'user'), isNull);
     });
+
+    test('removes the empty collection when not opened in this run', () async {
+      var db = await start();
+      await db.put<String>('', 'user', 'u1');
+
+      db = await restart();
+      await db.drop();
+
+      db = await restart();
+      expect(await db.get<String>('', 'user'), isNull);
+    });
+
+    test('with a collection removes it when not opened in this run', () async {
+      var db = await start();
+      await db.put<int>('a', 'k', 1);
+      await db.put<int>('b', 'k', 2);
+
+      db = await restart();
+      await db.drop(collection: 'a');
+
+      expect(boxFile('a').existsSync(), isFalse);
+      expect(await db.get<int>('b', 'k'), 2);
+    });
+
+    test('matches collection names regardless of case', () async {
+      var db = await start();
+      await db.put<String>('Mixed_Case', 'k', 'v');
+
+      db = await restart();
+      await db.drop();
+
+      expect(boxFile('mixed_case').existsSync(), isFalse);
+    });
+
+    test('covers a collection written to again after an earlier drop',
+        () async {
+      var db = await start();
+      await db.put<String>('settings', 'theme', 'dark');
+      await db.drop();
+      await db.put<String>('settings', 'theme', 'light');
+
+      db = await restart();
+      await db.drop();
+
+      db = await restart();
+      expect(await db.get<String>('settings', 'theme'), isNull);
+    });
+
+    test('covers a typed box opened with openTypedBox', () async {
+      var db = await start();
+      final box = await (db as HiveDataSource).openTypedBox<String>('typed');
+      await box.put('k', 'v');
+
+      db = await restart();
+      await db.drop();
+
+      expect(boxFile('typed').existsSync(), isFalse);
+    });
+
+    test('covers config.collections written before the registry existed',
+        () async {
+      // A box from 1.1.x: written straight through Hive, never recorded.
+      Hive.init(dir.path);
+      final legacy = await Hive.openBox<dynamic>('legacy');
+      await legacy.put('k', 'v');
+      await legacy.close();
+
+      final db = await UnifiedDataSourceFactory.create(
+        UnifiedDataSourceConfig.hive(
+          directory: dir.path,
+          collections: ['legacy'],
+        ),
+      );
+      expect(boxFile('legacy').existsSync(), isTrue);
+      await db.drop();
+
+      expect(boxFile('legacy').existsSync(), isFalse);
+    });
+
+    test('throws before init()', () {
+      final db = HiveDataSource(
+        config: HiveDataSourceConfig(directory: dir.path),
+      );
+      expect(db.drop(), throwsA(isA<DataSourceNotInitializedException>()));
+    });
   });
 
   group('errors', () {

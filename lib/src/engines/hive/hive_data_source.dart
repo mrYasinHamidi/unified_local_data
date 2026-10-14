@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:hive_ce/hive_ce.dart' as hive;
 
 import '../../core/data_model.dart';
@@ -13,9 +14,15 @@ import 'hive_config.dart';
 import 'hive_native_accessor.dart';
 
 final class HiveDataSource implements UnifiedDataSource {
+  /// The box where the data source records the name of every collection it
+  /// opens, so that [drop] can reach collections not opened in the current
+  /// run. Don't use it as a collection name.
+  static const registryBoxName = '_uld_collections';
+
   final HiveDataSourceConfig config;
   final Map<String, hive.Box<dynamic>> _boxCache = {};
   final Map<String, NativeCollectionAccessor<dynamic>> _nativeAccessors = {};
+  hive.Box<dynamic>? _registry;
   bool _initialized = false;
 
   HiveDataSource({required this.config});
@@ -24,6 +31,7 @@ final class HiveDataSource implements UnifiedDataSource {
   Future<void> init() async {
     if (_initialized) return;
     hive.Hive.init(config.directory);
+    _registry = await _openHiveBox<dynamic>(registryBoxName);
 
     for (final boxName in config.preloadBoxes) {
       await _openBox(boxName);
@@ -37,44 +45,52 @@ final class HiveDataSource implements UnifiedDataSource {
     for (final box in _boxCache.values) {
       if (box.isOpen) await box.close();
     }
+    final registry = _registry;
+    if (registry != null && registry.isOpen) await registry.close();
+    _registry = null;
     _boxCache.clear();
     _nativeAccessors.clear();
     _initialized = false;
+  }
+
+  Future<hive.Box<T>> _openHiveBox<T>(String name) {
+    final encryption = config.encryption;
+    return hive.Hive.openBox<T>(
+      name,
+      encryptionCipher:
+          encryption != null ? hive.HiveAesCipher(encryption.key) : null,
+    );
   }
 
   Future<hive.Box<dynamic>> _openBox(String name) async {
     final cached = _boxCache[name];
     if (cached != null && cached.isOpen) return cached;
 
-    final hive.Box<dynamic> box;
-    final encryption = config.encryption;
-    if (encryption != null) {
-      box = await hive.Hive.openBox(
-        name,
-        encryptionCipher: hive.HiveAesCipher(encryption.key),
-      );
-    } else {
-      box = await hive.Hive.openBox(name);
-    }
-
+    final box = await _openHiveBox<dynamic>(name);
     _boxCache[name] = box;
+    await _record(name);
     return box;
   }
 
   Future<hive.Box<T>> openTypedBox<T>(String name) async {
     _ensureInitialized();
-    final encryption = config.encryption;
-    final hive.Box<T> box;
-    if (encryption != null) {
-      box = await hive.Hive.openBox<T>(
-        name,
-        encryptionCipher: hive.HiveAesCipher(encryption.key),
-      );
-    } else {
-      box = await hive.Hive.openBox<T>(name);
-    }
+    final box = await _openHiveBox<T>(name);
     _boxCache[name] = box;
+    await _record(name);
     return box;
+  }
+
+  /// Adds [name] to the registry. Hive lower-cases box names, so the
+  /// registry does too.
+  Future<void> _record(String name) async {
+    final registry = _registry;
+    final boxName = name.toLowerCase();
+    if (registry == null ||
+        boxName == registryBoxName ||
+        registry.containsKey(boxName)) {
+      return;
+    }
+    await registry.put(boxName, true);
   }
 
   void _ensureInitialized() {
@@ -319,11 +335,41 @@ final class HiveDataSource implements UnifiedDataSource {
   }
 
   @override
-  Future<void> drop({String? collection}) {
+  Future<void> drop({String? collection}) async {
+    _ensureInitialized();
+    final registry = _registry!;
+    final names = collection != null
+        ? {collection.toLowerCase()}
+        : {
+            ...registry.keys.cast<String>(),
+            ..._boxCache.keys,
+            ...config.collections,
+            ...config.preloadBoxes,
+          }.map((name) => name.toLowerCase()).toSet();
+    names.remove(registryBoxName);
+
+    for (final name in names) {
+      if (kIsWeb) {
+        // Each box is its own IndexedDB database, and deleting one waits
+        // until every other connection to it closes, which a connection from
+        // another tab may never do. A clear is an ordinary write, and open
+        // watch streams see it.
+        final box = await _openHiveBox<dynamic>(name);
+        await box.clear();
+      } else {
+        // Deletes an open box through the box, and an unopened one through
+        // its files.
+        await hive.Hive.deleteBoxFromDisk(name);
+      }
+    }
+
+    _boxCache.removeWhere((name, _) => names.contains(name.toLowerCase()));
+    _nativeAccessors
+        .removeWhere((name, _) => names.contains(name.toLowerCase()));
     if (collection != null) {
-      return hive.Hive.deleteBoxFromDisk(collection);
+      await registry.delete(collection.toLowerCase());
     } else {
-      return hive.Hive.deleteFromDisk();
+      await registry.clear();
     }
   }
 }

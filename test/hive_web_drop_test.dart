@@ -58,4 +58,17 @@ void main() {
     expect(await db.get<String>('web_drop_one', 'k'), isNull);
     expect(await db.get<String>('web_keep', 'k'), 'v');
   });
+
+  test('drop() empties a collection not opened in this run', () async {
+    const config = HiveDataSourceConfig(directory: 'uld_web_test');
+    await UnifiedDataSourceFactory.create(config)
+        .then((db) => db.put<String>('web_unopened', 'k', 'v'));
+    await UnifiedDataSourceFactory.reset();
+
+    final db = await UnifiedDataSourceFactory.create(config);
+    rawConnection = await openRawConnection('web_unopened');
+    await db.drop().timeout(const Duration(seconds: 5));
+
+    expect(await db.get<String>('web_unopened', 'k'), isNull);
+  });
 }

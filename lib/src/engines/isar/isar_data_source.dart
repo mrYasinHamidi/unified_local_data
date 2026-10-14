@@ -367,6 +367,7 @@ final class IsarDataSource implements UnifiedDataSource {
 
   @override
   Future<void> drop({String? collection}) async {
+    _ensureInitialized();
     if (collection != null) {
       final entries =
           await _kvCollection.filter().collectionEqualTo(collection).findAll();
