@@ -181,8 +181,7 @@ final class HiveDataSource implements UnifiedDataSource {
   @override
   Future<bool> containsKey(String collection, String key) async {
     _ensureInitialized();
-    return guardRead('Failed to look up key "$key" in "$collection"',
-        () async {
+    return guardRead('Failed to look up key "$key" in "$collection"', () async {
       final box = await _openBox(collection);
       return box.containsKey(key);
     });
@@ -205,8 +204,7 @@ final class HiveDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    await guardWrite('Failed to put object "$key" in "$collection"',
-        () async {
+    await guardWrite('Failed to put object "$key" in "$collection"', () async {
       final box = await _openBox(collection);
       final jsonString = jsonEncode(adapter.toJson(value));
       await box.put(key, jsonString);
@@ -233,8 +231,7 @@ final class HiveDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    return guardRead('Failed to get all objects from "$collection"',
-        () async {
+    return guardRead('Failed to get all objects from "$collection"', () async {
       final box = await _openBox(collection);
       return box.values.map((raw) => _decodeObject(raw, adapter) as T).toList();
     });
@@ -260,8 +257,8 @@ final class HiveDataSource implements UnifiedDataSource {
     DataModelAdapter<T> adapter,
   ) async {
     _ensureInitialized();
-    await guardWrite(
-        'Failed to put ${entries.length} objects in "$collection"', () async {
+    await guardWrite('Failed to put ${entries.length} objects in "$collection"',
+        () async {
       final box = await _openBox(collection);
       final serialized = entries.map(
         (key, value) => MapEntry(key, jsonEncode(adapter.toJson(value))),
